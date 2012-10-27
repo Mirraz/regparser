@@ -46,18 +46,27 @@ typedef struct Base_ Base;
 
 typedef struct {
 	void (*bytes_order_to_h) (Base *);
-	int (*load_by_current_offset) (Base *, FILE *);
 	size_t size;
 } BaseClass;
 
 struct Base_ {
 	BaseClass *c;
+	int *d;
 };
+
+int Base_load_by_current_offset(Base *h, FILE *file) {
+	assert(h != NULL);
+	assert(file != NULL);
+	size_t red = fread(&(h->d), 1, h->c->size, file);
+	assert(red == h->c->size);
+	h->c->bytes_order_to_h(h);
+	return 0;
+}
 
 int Base_load_by_offset(Base *h, FILE *file, long offset) {
 	int res = fseek(file, offset, SEEK_SET);
 	assert(res == 0);
-	return h->c->load_by_current_offset(h, file);
+	return Base_load_by_current_offset(h, file);
 }
 
 /* ********************************** */
@@ -86,7 +95,6 @@ typedef struct Header_ Header;
 typedef struct {
 	/* from Base */
 	void (*bytes_order_to_h) (Header *);
-	int (*load_by_current_offset) (Header *, FILE *);
 	size_t size;
 	/* specific */
 } HeaderClass;
@@ -98,11 +106,9 @@ struct Header_ {
 
 void Header_class_init();
 void Header_bytes_order_to_h(Header *h);
-int Header_load_by_current_offset(Header *h, FILE *file);
 
 static HeaderClass header_class = {
 	.bytes_order_to_h = &Header_bytes_order_to_h,
-	.load_by_current_offset = &Header_load_by_current_offset,
 	.size = sizeof(HeaderStruct)
 };
 
@@ -127,15 +133,6 @@ void Header_bytes_order_to_h(Header *h) {
 	h->d.data_area_size = le32toh(h->d.data_area_size);
 	h->d.stuff3 = le32toh(h->d.stuff3);
 	h->d.checksum = le32toh(h->d.checksum);
-}
-
-int Header_load_by_current_offset(Header *h, FILE *file) {
-	assert(h != NULL);
-	assert(file != NULL);
-	size_t red = fread(&(h->d), 1, sizeof(h->d), file);
-	assert(red == sizeof(h->d));
-	Header_bytes_order_to_h(h);
-	return 0;
 }
 
 void Header_print(Header *h) {
@@ -167,7 +164,6 @@ void Header_print(Header *h) {
 		if (h->d.padding[i] != 0)
 			printl("padding[%d] = %02X", i, h->d.padding[i]);
 }
-
 
 /* ********************************** */
 
