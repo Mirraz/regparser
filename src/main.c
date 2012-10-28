@@ -167,23 +167,118 @@ void Header_print(Header *h) {
 
 /* ********************************** */
 
+#pragma pack(push,1)
+typedef struct {
+	uint8_t signature[4];
+	uint32_t self_adress;
+	uint32_t segment_size;
+	uint32_t stuff1;
+	uint32_t stuff2;
+	uint64_t changing_begin_time;
+	uint32_t segment_size_reserve_copy;
+} __attribute__ ((__packed__)) SegmentHeaderStruct;
+#pragma pack(pop)
+
+typedef struct SegmentHeader_ SegmentHeader;
+
+typedef struct {
+	/* from Base */
+	void (*bytes_order_to_h) (SegmentHeader *);
+	size_t size;
+	/* specific */
+} SegmentHeaderClass;
+
+struct SegmentHeader_ {
+	SegmentHeaderClass *c;
+	SegmentHeaderStruct d;
+};
+
+void SegmentHeader_class_init();
+void SegmentHeader_bytes_order_to_h(SegmentHeader *h);
+
+static SegmentHeaderClass segment_header_class = {
+	.bytes_order_to_h = &SegmentHeader_bytes_order_to_h,
+	.size = sizeof(SegmentHeaderStruct)
+};
+
+#define SegmentHeader_init_value {.c = &segment_header_class}
+
+/* ------------- */
+
+void SegmentHeader_class_init() {
+	assert(sizeof(SegmentHeaderStruct) == 0x20);
+}
+
+void SegmentHeader_bytes_order_to_h(SegmentHeader *h) {
+	assert(h != NULL);
+	h->d.self_adress = le32toh(h->d.self_adress);
+	h->d.segment_size = le32toh(h->d.segment_size);
+	h->d.stuff1 = le32toh(h->d.stuff1);
+	h->d.stuff2 = le32toh(h->d.stuff2);
+	h->d.changing_begin_time = le64toh(h->d.changing_begin_time);
+	h->d.segment_size_reserve_copy = le32toh(h->d.segment_size_reserve_copy);
+}
+
+void SegmentHeader_print(SegmentHeader *h) {
+	assert(h != NULL);
+
+	char *sig = (char *)&(h->d.signature);
+	printl("signature = %c%c%c%c", sig[0], sig[1], sig[2], sig[3]);
+
+	printl("self_adress = %08X", h->d.self_adress);
+	printl("segment_size = %08X", h->d.segment_size);
+	printl("stuff1 = %08X", h->d.stuff1);
+	printl("stuff2 = %08X", h->d.stuff2);
+	printl("changing_begin_time = %016X", (unsigned int)h->d.changing_begin_time);
+	printl("segment_size_reserve_copy = %08X", h->d.segment_size_reserve_copy);
+}
+
+/* ********************************** */
+
 void Classes_init() {
 	Header_class_init();
+	SegmentHeader_class_init();
 }
 
 int main (int argc, char *argv[]) {
 	Classes_init();
 
-	static Header h = Header_init_value;
-
-	Base *p = (Base *)&h;
+	int res;
 
 	assert(argc == 2);
 	FILE *regfile = fopen(argv[1], "r");
-	Base_load_by_offset(p, regfile, 0);
+	assert(regfile != NULL);
 
+	static Header h = Header_init_value;
+	Base *p = (Base *)&h;
+	res = Base_load_by_current_offset(p, regfile);
+	assert(!res);
 	Header_print((Header *)p);
+	printl("");
 
+	static SegmentHeader s = SegmentHeader_init_value;
+	Base *p2 = (Base *)&s;
+	int count = 0;
+	do {
+		res = Base_load_by_current_offset(p2, regfile);
+		assert(!res);
+		if (s.d.signature[0] != 'h' || s.d.signature[1] != 'b' ||
+				s.d.signature[2] != 'i' || s.d.signature[3] != 'n')
+			break;
+		++count;
+		assert(sizeof(HeaderStruct) + s.d.self_adress ==
+				(unsigned long)ftell(regfile) - sizeof(SegmentHeaderStruct));
+		SegmentHeader_print((SegmentHeader *)p2);
+		printl("");
+		res = fseek(regfile,s.d.segment_size - sizeof(SegmentHeaderStruct),SEEK_CUR);
+		assert(!res);
+	} while(1);
+
+	res = fseek(regfile, -sizeof(SegmentHeaderStruct), SEEK_CUR);
+	printl("%08X", (unsigned int)ftell(regfile));
+	printl("count = %d", count);
+
+	assert(fclose(regfile) == 0);
 	return 0;
 }
 
