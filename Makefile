@@ -18,13 +18,17 @@ all: $(BUILD_DIR) $(EXECUTABLE)
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(EXECUTABLE): $(BUILD_DIR)/main.o
+$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/structs.o $(BUILD_DIR)/codepages.o 
 	$(LD) -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c Makefile
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/structs.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/structs.o: $(SRC_DIR)/structs.c $(SRC_DIR)/structs.h $(SRC_DIR)/codepages.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/codepages.o: $(SRC_DIR)/codepages.c $(SRC_DIR)/codepages.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 clean:
 	rm -rf $(BUILD_DIR)
-
-

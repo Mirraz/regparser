@@ -1,0 +1,182 @@
+#ifndef MAIN_H_
+#define MAIN_H_
+
+#include <stdint.h>
+
+#define regf_header_size 0x1000
+
+#pragma pack(push,1)
+typedef struct {
+	uint8_t  signature[4];
+	uint32_t opened_transaction;
+	uint32_t closed_transaction;
+	uint64_t begin_transaction_number;
+	uint32_t stuff1;
+	uint32_t file_version;
+	uint32_t subversion;
+	uint32_t stuff2;
+	uint32_t ptr_root_nk;
+	uint32_t size_data_area;
+	uint32_t stuff3;
+	uint8_t  reg_file_path[460];
+	uint32_t checksum;
+} __attribute__ ((__packed__)) regf_struct;
+#pragma pack(pop)
+#define regf_struct_size 0x200
+
+#pragma pack(push,1)
+typedef struct {
+	uint8_t  signature[4];
+	uint32_t ptr_self;
+	uint32_t size_segment;
+	uint32_t stuff1;
+	uint32_t stuff2;
+	uint64_t time_changing_begin;
+	uint32_t stuff3;
+} __attribute__ ((__packed__)) hbin_struct;
+#pragma pack(pop)
+#define hbin_struct_size 0x20
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t flag;
+	uint64_t time_creation;
+	uint32_t stuff1;
+	uint32_t ptr_parent;
+	uint32_t count_chinds;
+	uint32_t stuff2;
+	uint32_t ptr_chinds_index;
+	uint32_t stuff3;
+	uint32_t count_params;
+	uint32_t ptr_params_index;
+	uint32_t ptr_sk;
+	uint32_t ptr_class_name;
+	uint32_t stuff4[5];
+	uint16_t size_key_name;
+	uint16_t size_key_class;
+	uint8_t  key_name[];
+} __attribute__ ((__packed__)) nk_struct;
+#pragma pack(pop)
+#define nk_struct_size 0x50
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t size_param_name;
+	uint16_t size_param_value;
+	uint32_t ptr_param_value;
+	uint32_t param_type;
+	uint32_t stuff1;
+	uint32_t stuff2;
+	uint8_t  param_name[];
+} __attribute__ ((__packed__)) vk_struct;
+#pragma pack(pop)
+#define vk_struct_size 0x18
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t stuff1;
+	uint32_t ptr_prev_sk;
+	uint32_t ptr_next_sk;
+	uint32_t count_ref;
+	uint32_t size_data;
+	uint8_t  data[];
+} __attribute__ ((__packed__)) sk_struct;
+#pragma pack(pop)
+#define sk_struct_size 0x18
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t count_records;
+	struct {
+		uint32_t ptr_nk;
+		uint32_t name_begin;
+	} records[];
+} __attribute__ ((__packed__)) lf_struct;
+#pragma pack(pop)
+#define lf_struct_size 0x08
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t count_records;
+	struct {
+		uint32_t ptr_nk;
+		uint32_t name_hash;
+	} records[];
+} __attribute__ ((__packed__)) lh_struct;
+#pragma pack(pop)
+#define lh_struct_size 0x08
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t count_records;
+	uint32_t ptr_nks[];
+} __attribute__ ((__packed__)) li_struct;
+#pragma pack(pop)
+#define li_struct_size 0x08
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t count_records;
+	uint32_t ptr_indexes[];
+} __attribute__ ((__packed__)) ri_struct;
+#pragma pack(pop)
+#define ri_struct_size 0x08
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t  signature[2];
+	uint16_t count_records;
+	uint32_t ptr_value_parts_index;
+} __attribute__ ((__packed__)) db_struct;
+#pragma pack(pop)
+#define db_struct_size 0x0A
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint8_t value[];
+} __attribute__ ((__packed__)) value_struct;
+#pragma pack(pop)
+#define value_struct_size 0x04
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t size;
+	uint32_t ptr_blocks[];
+} __attribute__ ((__packed__)) index_struct;
+#pragma pack(pop)
+#define index_struct_size 0x04
+
+/* ********************************** */
+
+void regf_check_struct_size();
+void regf_correct(regf_struct *s);
+int  regf_check(regf_struct *s);
+void regf_print(regf_struct *s);
+
+void hbin_check_struct_size();
+void hbin_correct(hbin_struct *s);
+int  hbin_check(hbin_struct *s);
+void hbin_print(hbin_struct *s);
+
+void nk_check_struct_size();
+void nk_correct(nk_struct *s);
+int  nk_check(nk_struct *s);
+void nk_print(nk_struct *s);
+
+#endif /* MAIN_H_ */
