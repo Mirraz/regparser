@@ -20,24 +20,21 @@ int main (int argc, char *argv[]) {
 	regf_struct *header = malloc(regf_struct_size);
 	ssize_t red = read(fd, header, regf_struct_size);
 	assert(red == regf_struct_size);
-	regf_correct(header);
 	assert(!regf_check(header));
 	regf_print(header);
 	size_t mmap_file_size = header->size_data_area;
 
-	uint8_t *data = mmap(NULL, mmap_file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
+	uint8_t *data = mmap(NULL, mmap_file_size, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
 	assert(data != MAP_FAILED);
 
 
 
 
 	hbin_struct *hbin1 = (hbin_struct *)data;
-	hbin_correct(hbin1);
 	assert(!hbin_check(hbin1));
 	hbin_print(hbin1);
 
 	nk_struct *nkroot = (nk_struct *)(data + header->ptr_root_nk);
-	nk_correct(nkroot);
 	assert(!nk_check((nkroot)));
 	nk_print(nkroot);
 

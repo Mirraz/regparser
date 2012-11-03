@@ -39,7 +39,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t flag;
 	uint64_t time_creation;
@@ -63,7 +63,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t size_param_name;
 	uint16_t size_param_value;
@@ -78,7 +78,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t stuff1;
 	uint32_t ptr_prev_sk;
@@ -92,7 +92,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t count_records;
 	struct {
@@ -105,7 +105,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t count_records;
 	struct {
@@ -118,7 +118,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t count_records;
 	uint32_t ptr_nks[];
@@ -128,7 +128,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t count_records;
 	uint32_t ptr_indexes[];
@@ -138,7 +138,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t  signature[2];
 	uint16_t count_records;
 	uint32_t ptr_value_parts_index;
@@ -148,7 +148,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint8_t value[];
 } __attribute__ ((__packed__)) value_struct;
 #pragma pack(pop)
@@ -156,7 +156,7 @@ typedef struct {
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t size;
+	int32_t size;
 	uint32_t ptr_blocks[];
 } __attribute__ ((__packed__)) index_struct;
 #pragma pack(pop)
@@ -165,17 +165,14 @@ typedef struct {
 /* ********************************** */
 
 void regf_check_struct_size();
-void regf_correct(regf_struct *s);
 int  regf_check(regf_struct *s);
 void regf_print(regf_struct *s);
 
 void hbin_check_struct_size();
-void hbin_correct(hbin_struct *s);
 int  hbin_check(hbin_struct *s);
 void hbin_print(hbin_struct *s);
 
 void nk_check_struct_size();
-void nk_correct(nk_struct *s);
 int  nk_check(nk_struct *s);
 void nk_print(nk_struct *s);
 
