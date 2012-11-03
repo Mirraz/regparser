@@ -164,16 +164,18 @@ typedef struct {
 
 /* ********************************** */
 
-void regf_check_struct_size();
+void structs_check_size();
+
 int  regf_check(regf_struct *s);
 void regf_print(regf_struct *s);
 
-void hbin_check_struct_size();
 int  hbin_check(hbin_struct *s);
 void hbin_print(hbin_struct *s);
 
-void nk_check_struct_size();
 int  nk_check(nk_struct *s);
 void nk_print(nk_struct *s);
+
+int index_check(index_struct *s);
+void index_print(index_struct *s);
 
 #endif /* MAIN_H_ */

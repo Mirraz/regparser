@@ -10,9 +10,7 @@
 #include "structs.h"
 
 int main (int argc, char *argv[]) {
-	regf_check_struct_size();
-	hbin_check_struct_size();
-	nk_check_struct_size();
+	structs_check_size();
 
 	assert(argc == 2);
 	int fd = open(argv[1], O_RDONLY);
@@ -34,11 +32,15 @@ int main (int argc, char *argv[]) {
 	assert(!hbin_check(hbin1));
 	hbin_print(hbin1);
 
-	nk_struct *nkroot = (nk_struct *)(data + header->ptr_root_nk);
-	assert(!nk_check((nkroot)));
-	nk_print(nkroot);
+	nk_struct *nk_root = (nk_struct *)(data + header->ptr_root_nk);
+	assert(!nk_check((nk_root)));
+	nk_print(nk_root);
 
-
+	if (nk_root->ptr_params_index != (uint32_t)-1) {
+		index_struct *index_params = (index_struct *)(data + nk_root->ptr_params_index);
+		assert(!index_check(index_params));
+		index_print(index_params);
+	}
 
 
 	assert(!munmap(data, mmap_file_size));

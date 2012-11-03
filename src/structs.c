@@ -11,9 +11,24 @@
 #error
 #endif
 
-#define check_struct_size(PREFIX) void PREFIX##_check_struct_size() { \
-	assert(sizeof(PREFIX##_struct) == PREFIX##_struct_size); \
+uint32_t size_data_area;
+
+/* ********************************** */
+
+#define check_struct_size(PREFIX) assert(sizeof(PREFIX##_struct) == PREFIX##_struct_size)
+
+void structs_check_size() {
+	check_struct_size(regf);
+	check_struct_size(hbin);
+	check_struct_size(nk);
+	check_struct_size(index);
 }
+
+inline static int check_ptr(uint32_t ptr) {
+	return (!(ptr == (uint32_t)-1 || ptr < size_data_area));
+}
+
+/* ********************************** */
 
 #define check_signature_word(c1, c2) do{ \
 	char *sig = (char *)&(s->signature); \
@@ -33,9 +48,12 @@
 #define printl_field32(name) printl_field(name, "%08X")
 #define printl_field64(name) printl(#name " = %016X", (unsigned int)s->name)
 
-/* ********************************** */
+#define printl_size() do{ \
+	print(s->size > 0 ? "FREE\n" : "USED\n"); \
+	printl("size = %08X", abs(s->size)); \
+}while(0)
 
-check_struct_size(regf)
+/* ********************************** */
 
 int regf_check(regf_struct *s) {
 	assert(s != NULL);
@@ -48,6 +66,9 @@ int regf_check(regf_struct *s) {
 	if (s->stuff2 != 1) return 1;
 	if (!(s->stuff3 >= 1 && s->stuff3 <= 8)) return 1;
 	// TODO: check checksum
+
+	size_data_area = s->size_data_area;
+	if (check_ptr(s->ptr_root_nk)) return 1;
 
 	return 0;
 }
@@ -79,8 +100,6 @@ void regf_print(regf_struct *s) {
 
 /* ********************************** */
 
-check_struct_size(hbin)
-
 int hbin_check(hbin_struct *s) {
 	assert(s != NULL);
 
@@ -89,6 +108,7 @@ int hbin_check(hbin_struct *s) {
 	//if (s->ptr_self != self_seek - regf_header_size) return 1;
 	if (s->stuff1 != 0) return 1;
 	if (s->stuff2 != 0) return 1;
+	if (check_ptr(s->ptr_self)) return 1;
 
 	return 0;
 }
@@ -110,8 +130,6 @@ void hbin_print(hbin_struct *s) {
 
 /* ********************************** */
 
-check_struct_size(nk)
-
 int nk_check(nk_struct *s) {
 	assert(s != NULL);
 
@@ -120,15 +138,19 @@ int nk_check(nk_struct *s) {
 	// if key_name is in unicode, then size_key_name must be even
 	if (!(s->flag & 0x20) && (s->size_key_name & 1) != 0) return 1;
 
+	if (check_ptr(s->ptr_parent)) return 1;
+	if (check_ptr(s->ptr_chinds_index)) return 1;
+	if (check_ptr(s->ptr_params_index)) return 1;
+	if (check_ptr(s->ptr_sk)) return 1;
+	if (check_ptr(s->ptr_class_name)) return 1;
+
 	return 0;
 }
 
 void nk_print(nk_struct *s) {
 	assert(s != NULL);
 
-	//printl_field32(size);
-	print(s->size > 0 ? "FREE\n" : "USED\n");
-	printl("size = %08X", abs(s->size));
+	printl_size();
 	print_signature_word();
 	printl_field16(flag);
 	printl_field64(time_creation);
@@ -160,3 +182,27 @@ void nk_print(nk_struct *s) {
 
 /* ********************************** */
 
+int index_check(index_struct *s) {
+	assert(s != NULL);
+
+	uint32_t size_ptr_blocks = abs(s->size) - index_struct_size;
+	if ((size_ptr_blocks & 3) != 0) return 2;
+
+	unsigned int i;
+	for (i=0; i<(size_ptr_blocks>>2); ++i) {
+		if (check_ptr(s->ptr_blocks[i])) return 1;
+	}
+
+	return 0;
+}
+
+void index_print(index_struct *s) {
+	assert(s != NULL);
+
+	printl_size();
+
+	unsigned int i, count_ptr_blocks = (abs(s->size) - index_struct_size) >> 2;
+	for (i=0; i<count_ptr_blocks; ++i) {
+		printl("ptr_blocks[%d] = %08X", i, s->ptr_blocks[i]);
+	}
+}
