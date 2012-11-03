@@ -166,7 +166,7 @@ void nk_print(nk_struct *s) {
 	for (i=0; i<5; ++i) printl("stuff4[%d] = %08X", i, s->stuff4[i]);
 	printl_field16(size_key_name);
 	printl_field16(size_key_class);
-	printl("key_name =");
+	print("key_name = ");
 	if (s->flag & 0x20) {
 		/* ansi */
 		for (i=0; i<(s->size_key_name); ++i) print("%c", s->key_name[i]);
@@ -180,6 +180,42 @@ void nk_print(nk_struct *s) {
 
 /* ********************************** */
 
+int lf_check(lf_struct *s) {
+	assert(s != NULL);
+
+	if (check_signatire(lf)) return 2;
+	if (check_size(s->size)) return 1;
+	if (!(lf_struct_size + s->count_records * sizeof(s->records[0]) <= abs(s->size))) return 1;
+	unsigned int i;
+	for (i=0; i<s->count_records; ++i)
+		if (check_ptr(s->records[i].ptr_nk)) return 1;
+
+	return 0;
+}
+
+void lf_print(lf_struct *s) {
+	assert(s != NULL);
+
+	printl_size();
+	print_signature_word();
+	printl_field16(count_records);
+	unsigned int i;
+	for (i=0; i<s->count_records; ++i) {
+		print("records[%d] : ptr = %08X, ", i, s->records[i].ptr_nk);
+		char *str = (char *)&(s->records[i].name_begin);
+		unsigned int j;
+		print("name = ");
+		for (j=0; j<4; ++j) {
+			if (str[j] == 0) break;
+			print("%c", str[j]);
+		}
+		printl("");
+	}
+	printl("");
+}
+
+/* ********************************** */
+
 int index_check(index_struct *s) {
 	assert(s != NULL);
 
@@ -187,10 +223,10 @@ int index_check(index_struct *s) {
 	uint32_t size_ptr_blocks = abs(s->size) - index_struct_size;
 	if ((size_ptr_blocks & 3) != 0) return 2;
 
-	unsigned int i;
+	/*unsigned int i;
 	for (i=0; i<(size_ptr_blocks>>2); ++i) {
 		if (check_ptr(s->ptr_blocks[i])) return 1;
-	}
+	}*/
 
 	return 0;
 }
@@ -204,4 +240,5 @@ void index_print(index_struct *s) {
 	for (i=0; i<count_ptr_blocks; ++i) {
 		printl("ptr_blocks[%d] = %08X", i, s->ptr_blocks[i]);
 	}
+	printl("");
 }

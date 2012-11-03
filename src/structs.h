@@ -202,6 +202,9 @@ void hbin_print(hbin_struct *s);
 int  nk_check(nk_struct *s);
 void nk_print(nk_struct *s);
 
+int lf_check(lf_struct *s);
+void lf_print(lf_struct *s);
+
 int index_check(index_struct *s);
 void index_print(index_struct *s);
 

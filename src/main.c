@@ -9,6 +9,64 @@
 
 #include "structs.h"
 
+uint8_t *data;
+
+void parse_child(uint32_t ptr_chinds_index);
+
+void parse_nk(nk_struct *nk1) {
+	assert(!nk_check((nk1)));
+	nk_print(nk1);
+
+	if (ptr_not_null(nk1->ptr_params_index)) {
+		index_struct *index_params = (index_struct *)(data + nk1->ptr_params_index);
+		assert(!index_check(index_params));
+		index_print(index_params);
+	}
+
+	parse_child(nk1->ptr_chinds_index);
+}
+
+
+void parse_child(uint32_t ptr_chinds_index) {
+	if (!ptr_not_null(ptr_chinds_index)) return;
+	signature_struct *sig = (signature_struct *)(data + ptr_chinds_index);
+	switch (sig->signature) {
+	case lf_signature:
+	{
+		lf_struct *lf1 = (lf_struct *)(data + ptr_chinds_index);
+		assert(!lf_check(lf1));
+		lf_print(lf1);
+		unsigned int i;
+		for (i=0; i<lf1->count_records; ++i)
+			parse_nk((nk_struct *)(data + lf1->records[i].ptr_nk));
+		break;
+	}
+	case lh_signature:
+	{
+		//lh_struct *lh1 = (lh_struct *)(data + ptr_chinds_index);
+printf("lh\n\n");
+		break;
+	}
+	case li_signature:
+	{
+		//li_struct *li1 = (li_struct *)(data + ptr_chinds_index);
+printf("li\n\n");
+		break;
+	}
+	case ri_signature:
+	{
+		//ri_struct *ri1 = (ri_struct *)(data + ptr_chinds_index);
+printf("ri\n\n");
+		break;
+	}
+	default:
+	{
+		assert(0);
+		break;
+	}
+	}
+}
+
 int main (int argc, char *argv[]) {
 	structs_check_size();
 
@@ -22,9 +80,8 @@ int main (int argc, char *argv[]) {
 	regf_print(header);
 	size_t mmap_file_size = header->size_data_area;
 
-	uint8_t *data = mmap(NULL, mmap_file_size, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
+	data = mmap(NULL, mmap_file_size, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
 	assert(data != MAP_FAILED);
-
 
 
 
@@ -33,48 +90,8 @@ int main (int argc, char *argv[]) {
 	hbin_print(hbin1);
 
 	nk_struct *nk_root = (nk_struct *)(data + header->ptr_root_nk);
-	assert(!nk_check((nk_root)));
-	nk_print(nk_root);
+	parse_nk(nk_root);
 
-	if (ptr_not_null(nk_root->ptr_params_index)) {
-		index_struct *index_params = (index_struct *)(data + nk_root->ptr_params_index);
-		assert(!index_check(index_params));
-		index_print(index_params);
-	}
-
-	if (ptr_not_null(nk_root->ptr_chinds_index)) {
-		signature_struct *sig = (signature_struct *)(data + nk_root->ptr_chinds_index);
-		switch (sig->signature) {
-		case lf_signature:
-		{
-			//lf_struct *lf1 = (lf_struct *)(data + nk_root->ptr_chinds_index);
-printf("lf\n");
-			break;
-		}
-		case lh_signature:
-		{
-			//lh_struct *lh1 = (lh_struct *)(data + nk_root->ptr_chinds_index);
-printf("lh\n");
-			break;
-		}
-		case li_signature:
-		{
-			//li_struct *li1 = (li_struct *)(data + nk_root->ptr_chinds_index);
-printf("li\n");
-			break;
-		}
-		case ri_signature:
-		{
-			//ri_struct *ri1 = (ri_struct *)(data + nk_root->ptr_chinds_index);
-printf("ri\n");
-			break;
-		}
-		default:
-		{
-			break;
-		}
-		}
-	}
 
 
 	assert(!munmap(data, mmap_file_size));
