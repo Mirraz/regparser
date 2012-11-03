@@ -73,11 +73,11 @@ typedef struct {
 	int32_t size;
 	uint16_t signature;
 	uint16_t size_param_name;
-	uint16_t size_param_value;
+	uint32_t size_param_value;
 	uint32_t ptr_param_value;
 	uint32_t param_type;
-	uint32_t stuff1;
-	uint32_t stuff2;
+	uint16_t stuff1;
+	uint16_t stuff2;
 	uint8_t  param_name[];
 } __attribute__ ((__packed__)) vk_struct;
 #pragma pack(pop)
@@ -202,10 +202,13 @@ void hbin_print(hbin_struct *s);
 int  nk_check(nk_struct *s);
 void nk_print(nk_struct *s);
 
-int lf_check(lf_struct *s);
+int  vk_check(vk_struct *s);
+void vk_print(vk_struct *s);
+
+int  lf_check(lf_struct *s);
 void lf_print(lf_struct *s);
 
-int index_check(index_struct *s);
-void index_print(index_struct *s);
+int  index_check(index_struct *s, unsigned int count_records);
+void index_print(index_struct *s, unsigned int count_records);
 
 #endif /* MAIN_H_ */

@@ -21,6 +21,8 @@ void structs_check_size() {
 	check_struct_size(regf);
 	check_struct_size(hbin);
 	check_struct_size(nk);
+	check_struct_size(vk);
+	check_struct_size(lf);
 	check_struct_size(index);
 }
 
@@ -28,9 +30,13 @@ void structs_check_size() {
 
 /* ********************************** */
 
-#define check_signatire(PREFIX) (s->signature != PREFIX##_signature)
-#define check_ptr(ptr) (!( !ptr_not_null(ptr) || ptr < size_data_area ))
-#define check_size(size) 0
+#define assert_check(condition, errnum) assert(condition)
+//#define assert_check(condition, errnum) do{if (!(condition)) return errnum;}while(0)
+
+#define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
+#define check_ptr(ptr) (!ptr_not_null(ptr) || ptr < size_data_area)
+#define check_size(size) (size < size_data_area)
+#define check_block_size() check_size(abs(s->size))
 
 #define print(format, args...) do{fprintf(stdout, format, ##args);}while(0)
 #define printl(format, args...) do{fprintf(stdout, format "\n", ##args);}while(0)
@@ -55,16 +61,16 @@ void structs_check_size() {
 int regf_check(regf_struct *s) {
 	assert(s != NULL);
 
-	if (check_signatire(regf)) return 2;
+	assert_check(check_signatire(regf), 2);
 
-	if (s->stuff1 != 1) return 1;
-	if (s->subversion != 0) return 1;
-	if (s->stuff2 != 1) return 1;
-	if (!(s->stuff3 >= 1 && s->stuff3 <= 8)) return 1;
+	assert_check(s->stuff1 == 1, 1);
+	assert_check(s->subversion == 0, 1);
+	assert_check(s->stuff2 == 1, 1);
+	assert_check(s->stuff3 >= 1 && s->stuff3 <= 8, 1);
 	// TODO: check checksum
 
 	size_data_area = s->size_data_area;
-	if (check_ptr(s->ptr_root_nk)) return 1;
+	assert_check(check_ptr(s->ptr_root_nk), 1);
 
 	return 0;
 }
@@ -99,12 +105,12 @@ void regf_print(regf_struct *s) {
 int hbin_check(hbin_struct *s) {
 	assert(s != NULL);
 
-	if (check_signatire(hbin)) return 2;
-	if (check_ptr(s->ptr_self)) return 1;
+	assert_check(check_signatire(hbin), 2);
+	assert_check(check_ptr(s->ptr_self), 1);
 	//if (s->ptr_self != (void *)s - ptr_data_area_begin) return 1;
-	if (check_size(s->size_segment)) return 1;
-	if (s->stuff1 != 0) return 1;
-	if (s->stuff2 != 0) return 1;
+	assert_check(check_size(s->size_segment), 1);
+	assert_check(s->stuff1 == 0, 1);
+	assert_check(s->stuff2 == 0, 1);
 
 	return 0;
 }
@@ -129,18 +135,18 @@ void hbin_print(hbin_struct *s) {
 int nk_check(nk_struct *s) {
 	assert(s != NULL);
 
-	if (check_signatire(nk)) return 2;
-	if (check_size(s->size)) return 1;
-	if (!( (uint32_t)nk_struct_size + s->size_key_name <= abs(s->size) )) return 1;
+	assert_check(check_signatire(nk), 2);
+	assert_check(check_block_size(), 1);
+	assert_check( (uint32_t)nk_struct_size + s->size_key_name <= abs(s->size), 1);
 	// if key_name is in unicode, then size_key_name must be even
-	if (!(s->flag & 0x20) && (s->size_key_name & 1) != 0) return 1;
-	if (check_size(s->size_key_class)) return 1;
+	assert_check( (s->flag & 0x20) || (s->size_key_name & 1) == 0, 1);
+	assert_check(check_size(s->size_key_class), 1);
 
-	if (check_ptr(s->ptr_parent)) return 1;
-	if (check_ptr(s->ptr_chinds_index)) return 1;
-	if (check_ptr(s->ptr_params_index)) return 1;
-	if (check_ptr(s->ptr_sk)) return 1;
-	if (check_ptr(s->ptr_class_name)) return 1;
+	assert_check(check_ptr(s->ptr_parent), 1);
+	assert_check(check_ptr(s->ptr_chinds_index), 1);
+	assert_check(check_ptr(s->ptr_params_index), 1);
+	assert_check(check_ptr(s->ptr_sk), 1);
+	assert_check(check_ptr(s->ptr_class_name), 1);
 
 	return 0;
 }
@@ -180,15 +186,62 @@ void nk_print(nk_struct *s) {
 
 /* ********************************** */
 
+int vk_check(vk_struct *s) {
+	assert(s != NULL);
+
+	assert_check(check_signatire(vk), 2);
+	assert_check(check_block_size(), 1);
+	assert_check(vk_struct_size + s->size_param_name <= abs(s->size), 1);
+	if (!(s->size_param_value & 0x80000000)) {
+		assert_check(check_size(s->size_param_value), 1);
+		assert_check(check_ptr(s->ptr_param_value), 1);
+	} else {
+		assert_check((s->size_param_value & ~0x80000000) <= 4, 1);
+	}
+
+	return 0;
+}
+
+void vk_print(vk_struct *s) {
+	assert(s != NULL);
+
+	printl_size();
+	print_signature_word();
+
+	printl_field16(size_param_name);
+
+	if (!(s->size_param_value & 0x80000000)) {
+		printl_field32(size_param_value);
+		printl_field32(ptr_param_value);
+	} else {
+		printl("size_param_value = %08X; in place value",
+				s->size_param_value & ~0x80000000);
+		printl("param_value = %08X", s->ptr_param_value);
+	}
+
+	printl_field32(param_type);
+	printl_field16(stuff1);
+	printl_field16(stuff2);
+
+	print("param_name = ");
+	unsigned int i;
+	for (i=0; i<s->size_param_name; ++i)
+		print("%c", s->param_name[i]);
+	printl("");
+	printl("");
+}
+
+/* ********************************** */
+
 int lf_check(lf_struct *s) {
 	assert(s != NULL);
 
-	if (check_signatire(lf)) return 2;
-	if (check_size(s->size)) return 1;
-	if (!(lf_struct_size + s->count_records * sizeof(s->records[0]) <= abs(s->size))) return 1;
+	assert_check(check_signatire(lf), 2);
+	assert_check(check_block_size(), 1);
+	assert_check(lf_struct_size + s->count_records * sizeof(s->records[0]) <= abs(s->size), 1);
 	unsigned int i;
 	for (i=0; i<s->count_records; ++i)
-		if (check_ptr(s->records[i].ptr_nk)) return 1;
+		assert_check(check_ptr(s->records[i].ptr_nk), 1);
 
 	return 0;
 }
@@ -216,28 +269,27 @@ void lf_print(lf_struct *s) {
 
 /* ********************************** */
 
-int index_check(index_struct *s) {
+int index_check(index_struct *s, unsigned int count_records) {
 	assert(s != NULL);
 
-	if (check_size(s->size)) return 2;
-	uint32_t size_ptr_blocks = abs(s->size) - index_struct_size;
-	if ((size_ptr_blocks & 3) != 0) return 2;
+	assert_check(check_block_size(), 2);
+	assert_check(count_records * 4 + index_struct_size <= abs(s->size), 2);
 
-	/*unsigned int i;
-	for (i=0; i<(size_ptr_blocks>>2); ++i) {
-		if (check_ptr(s->ptr_blocks[i])) return 1;
-	}*/
+	unsigned int i;
+	for (i=0; i<count_records; ++i) {
+		assert_check(check_ptr(s->ptr_blocks[i]), 1);
+	}
 
 	return 0;
 }
 
-void index_print(index_struct *s) {
+void index_print(index_struct *s, unsigned int count_records) {
 	assert(s != NULL);
 
 	printl_size();
 
-	unsigned int i, count_ptr_blocks = (abs(s->size) - index_struct_size) >> 2;
-	for (i=0; i<count_ptr_blocks; ++i) {
+	unsigned int i;
+	for (i=0; i<count_records; ++i) {
 		printl("ptr_blocks[%d] = %08X", i, s->ptr_blocks[i]);
 	}
 	printl("");

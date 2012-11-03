@@ -13,14 +13,24 @@ uint8_t *data;
 
 void parse_child(uint32_t ptr_chinds_index);
 
-void parse_nk(nk_struct *nk1) {
+void parse_nk(uint32_t ptr_nk) {
+	nk_struct *nk1 = (nk_struct *)(data + ptr_nk);
 	assert(!nk_check((nk1)));
 	nk_print(nk1);
 
 	if (ptr_not_null(nk1->ptr_params_index)) {
+		unsigned int count_index_records = nk1->count_params;
+
 		index_struct *index_params = (index_struct *)(data + nk1->ptr_params_index);
-		assert(!index_check(index_params));
-		index_print(index_params);
+		assert(!index_check(index_params, count_index_records));
+		index_print(index_params, count_index_records);
+
+		unsigned int i;
+		for (i=0; i<count_index_records; ++i) {
+			vk_struct *vk1 = (vk_struct *)(data + index_params->ptr_blocks[i]);
+			assert(!vk_check(vk1));
+			vk_print(vk1);
+		}
 	}
 
 	parse_child(nk1->ptr_chinds_index);
@@ -38,7 +48,7 @@ void parse_child(uint32_t ptr_chinds_index) {
 		lf_print(lf1);
 		unsigned int i;
 		for (i=0; i<lf1->count_records; ++i)
-			parse_nk((nk_struct *)(data + lf1->records[i].ptr_nk));
+			parse_nk(lf1->records[i].ptr_nk);
 		break;
 	}
 	case lh_signature:
@@ -89,8 +99,8 @@ int main (int argc, char *argv[]) {
 	assert(!hbin_check(hbin1));
 	hbin_print(hbin1);
 
-	nk_struct *nk_root = (nk_struct *)(data + header->ptr_root_nk);
-	parse_nk(nk_root);
+
+	parse_nk(header->ptr_root_nk);
 
 
 
