@@ -24,16 +24,13 @@ void structs_check_size() {
 	check_struct_size(index);
 }
 
-inline static int check_ptr(uint32_t ptr) {
-	return (!(ptr == (uint32_t)-1 || ptr < size_data_area));
-}
+#undef check_struct_size
 
 /* ********************************** */
 
-#define check_signature_word(c1, c2) do{ \
-	char *sig = (char *)&(s->signature); \
-	if (sig[0] != c1 || sig[1] != c2) return 2; \
-}while(0)
+#define check_signatire(PREFIX) (s->signature != PREFIX##_signature)
+#define check_ptr(ptr) (!( !ptr_not_null(ptr) || ptr < size_data_area ))
+#define check_size(size) 0
 
 #define print(format, args...) do{fprintf(stdout, format, ##args);}while(0)
 #define printl(format, args...) do{fprintf(stdout, format "\n", ##args);}while(0)
@@ -58,8 +55,7 @@ inline static int check_ptr(uint32_t ptr) {
 int regf_check(regf_struct *s) {
 	assert(s != NULL);
 
-	char *sig = (char *)&(s->signature);
-	if (sig[0] != 'r' || sig[1] != 'e' || sig[2] != 'g' || sig[3] != 'f') return 2;
+	if (check_signatire(regf)) return 2;
 
 	if (s->stuff1 != 1) return 1;
 	if (s->subversion != 0) return 1;
@@ -103,12 +99,12 @@ void regf_print(regf_struct *s) {
 int hbin_check(hbin_struct *s) {
 	assert(s != NULL);
 
-	char *sig = (char *)&(s->signature);
-	if (sig[0] != 'h' || sig[1] != 'b' || sig[2] != 'i' || sig[3] != 'n') return 2;
-	//if (s->ptr_self != self_seek - regf_header_size) return 1;
+	if (check_signatire(hbin)) return 2;
+	if (check_ptr(s->ptr_self)) return 1;
+	//if (s->ptr_self != (void *)s - ptr_data_area_begin) return 1;
+	if (check_size(s->size_segment)) return 1;
 	if (s->stuff1 != 0) return 1;
 	if (s->stuff2 != 0) return 1;
-	if (check_ptr(s->ptr_self)) return 1;
 
 	return 0;
 }
@@ -133,10 +129,12 @@ void hbin_print(hbin_struct *s) {
 int nk_check(nk_struct *s) {
 	assert(s != NULL);
 
-	check_signature_word('n', 'k');
-	if (!( (uint32_t)nk_struct_size + s->size_key_name <= abs(s->size) )) return 2;
+	if (check_signatire(nk)) return 2;
+	if (check_size(s->size)) return 1;
+	if (!( (uint32_t)nk_struct_size + s->size_key_name <= abs(s->size) )) return 1;
 	// if key_name is in unicode, then size_key_name must be even
 	if (!(s->flag & 0x20) && (s->size_key_name & 1) != 0) return 1;
+	if (check_size(s->size_key_class)) return 1;
 
 	if (check_ptr(s->ptr_parent)) return 1;
 	if (check_ptr(s->ptr_chinds_index)) return 1;
@@ -185,6 +183,7 @@ void nk_print(nk_struct *s) {
 int index_check(index_struct *s) {
 	assert(s != NULL);
 
+	if (check_size(s->size)) return 2;
 	uint32_t size_ptr_blocks = abs(s->size) - index_struct_size;
 	if ((size_ptr_blocks & 3) != 0) return 2;
 

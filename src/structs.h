@@ -3,11 +3,15 @@
 
 #include <stdint.h>
 
+#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+
+/* ********************************** */
+
 #define regf_header_size 0x1000
 
 #pragma pack(push,1)
 typedef struct {
-	uint8_t  signature[4];
+	uint32_t signature;
 	uint32_t opened_transaction;
 	uint32_t closed_transaction;
 	uint64_t begin_transaction_number;
@@ -23,10 +27,11 @@ typedef struct {
 } __attribute__ ((__packed__)) regf_struct;
 #pragma pack(pop)
 #define regf_struct_size 0x200
+#define regf_signature 0x66676572
 
 #pragma pack(push,1)
 typedef struct {
-	uint8_t  signature[4];
+	uint32_t signature;
 	uint32_t ptr_self;
 	uint32_t size_segment;
 	uint32_t stuff1;
@@ -36,11 +41,12 @@ typedef struct {
 } __attribute__ ((__packed__)) hbin_struct;
 #pragma pack(pop)
 #define hbin_struct_size 0x20
+#define hbin_signature 0x6E696268
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t flag;
 	uint64_t time_creation;
 	uint32_t stuff1;
@@ -60,11 +66,12 @@ typedef struct {
 } __attribute__ ((__packed__)) nk_struct;
 #pragma pack(pop)
 #define nk_struct_size 0x50
+#define nk_signature 0x6B6E
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t size_param_name;
 	uint16_t size_param_value;
 	uint32_t ptr_param_value;
@@ -75,11 +82,12 @@ typedef struct {
 } __attribute__ ((__packed__)) vk_struct;
 #pragma pack(pop)
 #define vk_struct_size 0x18
+#define vk_signature 0x6B76
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t stuff1;
 	uint32_t ptr_prev_sk;
 	uint32_t ptr_next_sk;
@@ -89,11 +97,12 @@ typedef struct {
 } __attribute__ ((__packed__)) sk_struct;
 #pragma pack(pop)
 #define sk_struct_size 0x18
+#define sk_signature 0x6B73
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t count_records;
 	struct {
 		uint32_t ptr_nk;
@@ -102,11 +111,12 @@ typedef struct {
 } __attribute__ ((__packed__)) lf_struct;
 #pragma pack(pop)
 #define lf_struct_size 0x08
+#define lf_signature 0x666C
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t count_records;
 	struct {
 		uint32_t ptr_nk;
@@ -115,36 +125,42 @@ typedef struct {
 } __attribute__ ((__packed__)) lh_struct;
 #pragma pack(pop)
 #define lh_struct_size 0x08
+#define lh_signature 0x686C
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t count_records;
 	uint32_t ptr_nks[];
 } __attribute__ ((__packed__)) li_struct;
 #pragma pack(pop)
 #define li_struct_size 0x08
+#define li_signature 0x696C
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t count_records;
 	uint32_t ptr_indexes[];
 } __attribute__ ((__packed__)) ri_struct;
 #pragma pack(pop)
 #define ri_struct_size 0x08
+#define ri_signature 0x6972
 
 #pragma pack(push,1)
 typedef struct {
 	int32_t size;
-	uint8_t  signature[2];
+	uint16_t signature;
 	uint16_t count_records;
 	uint32_t ptr_value_parts_index;
 } __attribute__ ((__packed__)) db_struct;
 #pragma pack(pop)
 #define db_struct_size 0x0A
+#define db_signature 0x6264
+
+/* ========= */
 
 #pragma pack(push,1)
 typedef struct {
@@ -161,6 +177,17 @@ typedef struct {
 } __attribute__ ((__packed__)) index_struct;
 #pragma pack(pop)
 #define index_struct_size 0x04
+
+/* ********************************** */
+
+#pragma pack(push,1)
+typedef struct {
+	int32_t size;
+	uint16_t signature;
+	uint16_t stuff1;
+} __attribute__ ((__packed__)) signature_struct;
+#pragma pack(pop)
+#define signature_struct_size 0x08
 
 /* ********************************** */
 

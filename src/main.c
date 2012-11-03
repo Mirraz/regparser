@@ -36,10 +36,44 @@ int main (int argc, char *argv[]) {
 	assert(!nk_check((nk_root)));
 	nk_print(nk_root);
 
-	if (nk_root->ptr_params_index != (uint32_t)-1) {
+	if (ptr_not_null(nk_root->ptr_params_index)) {
 		index_struct *index_params = (index_struct *)(data + nk_root->ptr_params_index);
 		assert(!index_check(index_params));
 		index_print(index_params);
+	}
+
+	if (ptr_not_null(nk_root->ptr_chinds_index)) {
+		signature_struct *sig = (signature_struct *)(data + nk_root->ptr_chinds_index);
+		switch (sig->signature) {
+		case lf_signature:
+		{
+			//lf_struct *lf1 = (lf_struct *)(data + nk_root->ptr_chinds_index);
+printf("lf\n");
+			break;
+		}
+		case lh_signature:
+		{
+			//lh_struct *lh1 = (lh_struct *)(data + nk_root->ptr_chinds_index);
+printf("lh\n");
+			break;
+		}
+		case li_signature:
+		{
+			//li_struct *li1 = (li_struct *)(data + nk_root->ptr_chinds_index);
+printf("li\n");
+			break;
+		}
+		case ri_signature:
+		{
+			//ri_struct *ri1 = (ri_struct *)(data + nk_root->ptr_chinds_index);
+printf("ri\n");
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
 	}
 
 
