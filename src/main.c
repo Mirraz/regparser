@@ -12,6 +12,7 @@
 uint8_t *data;
 
 void parse_child(uint32_t ptr_chinds_index);
+void parse_param_value(uint32_t ptr_param_value);
 
 void parse_nk(uint32_t ptr_nk) {
 	nk_struct *nk1 = (nk_struct *)(data + ptr_nk);
@@ -30,6 +31,8 @@ void parse_nk(uint32_t ptr_nk) {
 			vk_struct *vk1 = (vk_struct *)(data + index_params->ptr_blocks[i]);
 			assert(!vk_check(vk1));
 			vk_print(vk1);
+			if (!(vk1->size_param_value & 0x80000000))
+				parse_param_value(vk1->ptr_param_value);
 		}
 	}
 
@@ -38,7 +41,7 @@ void parse_nk(uint32_t ptr_nk) {
 
 
 void parse_child(uint32_t ptr_chinds_index) {
-	if (!ptr_not_null(ptr_chinds_index)) return;
+	if (ptr_is_null(ptr_chinds_index)) return;
 	signature_struct *sig = (signature_struct *)(data + ptr_chinds_index);
 	switch (sig->signature) {
 	case lf_signature:
@@ -75,6 +78,18 @@ printf("ri\n\n");
 		break;
 	}
 	}
+}
+
+void parse_param_value(uint32_t ptr_param_value) {
+	printf("param_value\n");
+	int32_t size_ = *(int32_t *)(data + ptr_param_value);
+	printf(size_ > 0 ? "FREE\n" : "USED\n");
+	uint32_t size = abs(size_);
+	printf("size = %08X\n", size);
+	uint8_t *d = (uint8_t *)(data + ptr_param_value + sizeof(size));
+	unsigned int i;
+	for (i=0; i<size; ++i) printf("%02X ", d[i]);
+	printf("\n\n");
 }
 
 int main (int argc, char *argv[]) {

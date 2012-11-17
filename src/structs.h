@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
 #define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
 
 /* ********************************** */
@@ -157,7 +158,7 @@ typedef struct {
 	uint32_t ptr_value_parts_index;
 } __attribute__ ((__packed__)) db_struct;
 #pragma pack(pop)
-#define db_struct_size 0x0A
+#define db_struct_size 0x0C
 #define db_signature 0x6264
 
 /* ========= */

@@ -20,10 +20,20 @@ uint32_t size_data_area;
 void structs_check_size() {
 	check_struct_size(regf);
 	check_struct_size(hbin);
+
 	check_struct_size(nk);
 	check_struct_size(vk);
+	check_struct_size(sk);
 	check_struct_size(lf);
+	check_struct_size(lh);
+	check_struct_size(li);
+	check_struct_size(ri);
+	check_struct_size(db);
+
+	check_struct_size(value);
 	check_struct_size(index);
+
+	check_struct_size(signature);
 }
 
 #undef check_struct_size
@@ -34,7 +44,7 @@ void structs_check_size() {
 //#define assert_check(condition, errnum) do{if (!(condition)) return errnum;}while(0)
 
 #define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
-#define check_ptr(ptr) (!ptr_not_null(ptr) || ptr < size_data_area)
+#define check_ptr(ptr) (ptr_is_null(ptr) || ptr < size_data_area)
 #define check_size(size) (size < size_data_area)
 #define check_block_size() check_size(abs(s->size))
 
