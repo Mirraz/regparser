@@ -77,7 +77,7 @@ typedef struct {
 	uint32_t size_param_value;
 	uint32_t ptr_param_value;
 	uint32_t param_type;
-	uint16_t stuff1;
+	uint16_t flag;
 	uint16_t stuff2;
 	uint8_t  param_name[];
 } __attribute__ ((__packed__)) vk_struct;
@@ -194,22 +194,21 @@ typedef struct {
 
 void structs_check_size();
 
-int  regf_check(regf_struct *s);
-void regf_print(regf_struct *s);
+regf_struct *regf_init(regf_struct *s);
+void set_data(uint8_t *data);
 
-int  hbin_check(hbin_struct *s);
-void hbin_print(hbin_struct *s);
+hbin_struct *hbin_init(uint32_t ptr);
+nk_struct *nk_init(uint32_t ptr);
 
-int  nk_check(nk_struct *s);
-void nk_print(nk_struct *s);
+/* FIXME */
+extern FILE *fout;
 
-int  vk_check(vk_struct *s);
-void vk_print(vk_struct *s);
+void nk_print_name(nk_struct *s);
+void nk_print_class(nk_struct *s);
+void nk_print_sk(nk_struct *s);
+void nk_ls_params(nk_struct *s);
+void nk_ls_childs(nk_struct *s);
 
-int  lf_check(lf_struct *s);
-void lf_print(lf_struct *s);
-
-int  index_check(index_struct *s, unsigned int count_records);
-void index_print(index_struct *s, unsigned int count_records);
+void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *));
 
 #endif /* MAIN_H_ */
