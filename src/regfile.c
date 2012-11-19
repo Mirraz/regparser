@@ -2,20 +2,29 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <endian.h>
-#if __BYTE_ORDER == __BIG_ENDIAN
-#error
-#endif
-
+#include "common.h"
 #include "codepages.h"
-#include "structs.h"
-
-uint8_t *data = NULL;
-uint32_t size_data_area;
+#include "security_descriptor.h"
+#include "regfile_declare.h"
+#include "regfile.h"
 
 /* ********************************** */
 
-#define check_struct_size(PREFIX) assert(sizeof(PREFIX##_struct) == PREFIX##_struct_size)
+#define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
+#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+
+#define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
+#define check_block_ptr() (ptr_not_null(ptr) && ptr < size_data_area)
+#define check_ptr(ptr) (ptr_is_null(ptr) || ptr < size_data_area)
+#define check_size(size) (size < size_data_area)
+#define check_block_size() (abs(s->size)+ptr <= size_data_area)
+
+/* ********************************** */
+
+uint8_t *data = NULL;
+uint32_t size_data_area = 0;
+
+/* ********************************** */
 
 void structs_check_size() {
 	check_struct_size(regf);
@@ -34,23 +43,9 @@ void structs_check_size() {
 	check_struct_size(index);
 
 	check_struct_size(signature);
+	
+	secstructs_check_size();
 }
-
-#undef check_struct_size
-
-/* ********************************** */
-
-#define assert_check(condition, errnum) assert(condition)
-/* some field of out structure (which was correctly identified) has wrong value */
-#define assert_check1(condition) assert_check(condition, 1)
-/* ptr was wrong and/or structure is not correctly identified */
-#define assert_check2(condition) assert_check(condition, 2)
-
-#define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
-#define check_block_ptr() (ptr_not_null(ptr) && ptr < size_data_area)
-#define check_ptr(ptr) (ptr_is_null(ptr) || ptr < size_data_area)
-#define check_size(size) (size < size_data_area)
-#define check_block_size() check_size(abs(s->size))
 
 /* ********************************** */
 
@@ -255,8 +250,7 @@ void nk_print_sk(nk_struct *s) {
 	assert(s != NULL);
 	assert(ptr_not_null(s->ptr_sk));
 	sk_struct *sk = sk_init(s->ptr_sk);
-	unsigned int i;
-	for (i=0; i<sk->size_data; ++i) printf("%02X ", sk->data[i]);
+	sec_data_parse(sk->data, sk->size);
 }
 
 void vk_print_name(vk_struct *s) {
@@ -293,8 +287,7 @@ void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *)) {
 	assert(ptr_not_null(ptr_chinds_index));
 	signature_struct *sig = signature_init(ptr_chinds_index);
 	switch (sig->signature) {
-	case lf_signature:
-	{
+	case lf_signature: {
 		lf_struct *lf = lf_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<lf->count_records; ++i) {
@@ -303,8 +296,7 @@ void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *)) {
 		}
 		break;
 	}
-	case lh_signature:
-	{
+	case lh_signature: {
 		lh_struct *lh = lh_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<lh->count_records; ++i) {
@@ -313,14 +305,12 @@ void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *)) {
 		}
 		break;
 	}
-	case li_signature:
-	{
+	case li_signature: {
 		//li_struct *li1 = (li_struct *)(data + ptr_chinds_index);
 fprintf(stderr, "li\n");
 		break;
 	}
-	case ri_signature:
-	{
+	case ri_signature: {
 		ri_struct *ri = ri_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<ri->count_records; ++i)
@@ -345,3 +335,38 @@ void nk_ls_childs(nk_struct *s) {
 	assert(ptr_not_null(s->ptr_chinds_index));
 	parse_childs(s->ptr_chinds_index, &nk_ls_childs_cb);
 }
+
+void nk_recur(nk_struct *s) {
+	assert(s != NULL);
+
+	fprintf(fout, "[key name]\n");
+	nk_print_name(s);
+	fprintf(fout, "\n");
+
+	if (ptr_not_null(s->ptr_class_name)) {
+		fprintf(fout, "[key class]\n");
+		nk_print_class(s);
+		fprintf(fout, "\n");
+	}
+
+	if (ptr_not_null(s->ptr_sk)) {
+		fprintf(fout, "[sk]\n");
+		nk_print_sk(s);
+	}
+
+	if (s->count_params != 0) {
+		fprintf(fout, "[params]\n");
+		nk_ls_params(s);
+	}
+
+	if (ptr_not_null(s->ptr_chinds_index)) {
+		fprintf(fout, "[childs]\n");
+		nk_ls_childs(s);
+	}
+	fprintf(fout, "===============\n");
+
+	if (ptr_not_null(s->ptr_chinds_index)) {
+		parse_childs(s->ptr_chinds_index, &nk_recur);
+	}
+}
+

@@ -1,10 +1,7 @@
-#ifndef MAIN_H_
-#define MAIN_H_
+#ifndef REGFILE_DECLARE_H_
+#define REGFILE_DECLARE_H_
 
 #include <stdint.h>
-
-#define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
-#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
 
 /* ********************************** */
 
@@ -192,23 +189,4 @@ typedef struct {
 
 /* ********************************** */
 
-void structs_check_size();
-
-regf_struct *regf_init(regf_struct *s);
-void set_data(uint8_t *data);
-
-hbin_struct *hbin_init(uint32_t ptr);
-nk_struct *nk_init(uint32_t ptr);
-
-/* FIXME */
-extern FILE *fout;
-
-void nk_print_name(nk_struct *s);
-void nk_print_class(nk_struct *s);
-void nk_print_sk(nk_struct *s);
-void nk_ls_params(nk_struct *s);
-void nk_ls_childs(nk_struct *s);
-
-void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *));
-
-#endif /* MAIN_H_ */
+#endif /* REGFILE_DECLARE_H_ */
