@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <endian.h>
 
 #include "common.h"
 #include "codepages.h"
@@ -21,6 +22,7 @@
 
 /* ********************************** */
 
+static const param_type_desc_struct param_type_desc[] = param_type_desc_value;
 uint8_t *data = NULL;
 uint32_t size_data_area = 0;
 
@@ -96,7 +98,7 @@ nk_struct *nk_init(uint32_t ptr) {
 	assert_check1(check_block_size());
 
 	assert_check1(nk_struct_size + s->size_key_name <= abs(s->size));
-	// if key_name is in unicode, then size_key_name must be even
+	/* if key_name is in unicode, then size_key_name must be even */
 	assert_check1( (s->flag & 0x20) || (s->size_key_name & 1) == 0);
 	assert_check1(check_size(s->size_key_class));
 
@@ -122,6 +124,8 @@ vk_struct *vk_init(uint32_t ptr) {
 	} else {
 		assert_check1((s->size_param_value & ~0x80000000) <= 4);
 	}
+	/* in SAM regfile in type may be sid user number */
+	/*assert_check1(s->param_type < param_types_count);*/
 
 	return s;
 }
@@ -181,6 +185,17 @@ ri_struct *ri_init(uint32_t ptr) {
 	for (i=0; i<s->count_records; ++i)
 		assert_check1(check_ptr(s->ptr_indexes[i]));
 
+	return s;
+}
+
+db_struct *db_init(uint32_t ptr) {
+	assert_check2(check_block_ptr());
+	db_struct *s = (db_struct *)(data + ptr);
+	assert_check2(check_signatire(db));
+	assert_check1(check_block_size());
+	
+	assert_check1(check_ptr(s->ptr_value_parts_index));
+	
 	return s;
 }
 
@@ -283,6 +298,126 @@ void nk_ls_params(nk_struct *s) {
 	}
 }
 
+void value_type_print(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		unsigned int bytes_counter = 0;
+		unsigned int i;
+		for (i=0; i<value_size; ++i) {
+			if (bytes_counter == 16) {
+				fprintf(fout, "\n");
+				bytes_counter = 0;
+			}
+			fprintf(fout, "%02X ", value_data[i]);
+			++bytes_counter;
+		}
+		fprintf(fout, "\n");
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		/* in "default" regfile may by "?? ?? .. .. ?? ?? 00 00 ??" */
+		/*assert(!(value_size & 1));*/
+
+		fprintf(fout, "\"");
+		fprintStringUnicode(fout, value_data, value_size>>1);
+		fprintf(fout, "\"");
+		fprintf(fout, "\n");
+		break;
+	}
+	case REG_DWORD: {
+		fprintf(fout, "%08X", *((uint32_t *)value_data));
+		fprintf(fout, "\n");
+		break;
+	}
+	case REG_DWORD_BIG_ENDIAN: {
+		fprintf(fout, "%08X", be32toh(*((uint32_t *)value_data)));
+		fprintf(fout, "\n");
+		break;
+	}
+	case REG_QWORD: {
+		fprintf(fout, "%016llX", (long long unsigned int)(*((uint64_t *)value_data)));
+		fprintf(fout, "\n");
+		break;
+	}
+	case REG_MULTI_SZ: {
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		assert(!(value_size & 1));
+		uint32_t utf16_rest = value_size >> 1;
+		unsigned int i = 0;
+		/* sometimes loop stops by condition "i < utf16_rest" */
+		while (i < utf16_rest && utf16_data[i] != 0) {
+			utf16_data += i;
+			utf16_rest -= i;
+			i = 0;
+			while (i < utf16_rest && utf16_data[i] != 0) ++i;
+			fprintStringUnicode(fout, (uint8_t *)utf16_data, i);
+			fprintf(fout, "\n");
+			if (i == utf16_rest) break;
+			++i;
+		}
+		break;
+	}
+	}
+}
+
+void vk_print_value(vk_struct *s) {
+	assert(s != NULL);
+//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
+	if (!(s->size_param_value & 0x80000000)) {
+		value_struct *block = (value_struct *)(data + s->ptr_param_value);
+		/* this condition doesn't work */
+		/*if (s->size_param_value <= PARAM_PART_MAX)*/
+		if (abs(block->size) >= s->size_param_value) {
+			value_struct *param_value =
+					value_init(s->ptr_param_value, s->size_param_value);
+			value_type_print(param_value->value, s->size_param_value, s->param_type);
+		} else {
+			/* db */
+			if (
+					s->param_type == REG_NONE ||
+					s->param_type == REG_BINARY ||
+					s->param_type == REG_RESOURCE_LIST ||
+					s->param_type == REG_FULL_RESOURCE_DESCRIPTOR ||
+					s->param_type == REG_RESOURCE_REQUIREMENTS_LIST ||
+					s->param_type > param_types_count) {
+				
+				db_struct *db = db_init(s->ptr_param_value);
+				index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
+				uint32_t rest = s->size_param_value;
+				unsigned int bytes_counter = 0;
+				unsigned int i;
+				for (i=0; i<db->count_records; ++i) {
+					uint32_t part_size = (rest > PARAM_PART_MAX ? PARAM_PART_MAX : rest);
+					rest -= part_size;
+					value_struct *part = value_init(part_index->ptr_blocks[i], part_size);
+					unsigned int j;
+					for (j=0; j<part_size; ++j) {
+						if (bytes_counter == 16) {
+							fprintf(fout, "\n");
+							bytes_counter = 0;
+						}
+						fprintf(fout, "%02X ", part->value[j]);
+						++bytes_counter;
+					}
+				}
+				fprintf(fout, "\n");
+				
+			} else {
+				fprintf(stderr, "db unsupported type %s\n", param_type_desc[s->param_type].name);
+			}
+		}
+	} else {
+		value_type_print((uint8_t *)&(s->ptr_param_value), s->size_param_value & ~0x80000000, s->param_type);
+	}
+}
+
 void parse_childs(uint32_t ptr_chinds_index, void (*cb)(nk_struct *)) {
 	assert(ptr_not_null(ptr_chinds_index));
 	signature_struct *sig = signature_init(ptr_chinds_index);
@@ -355,8 +490,25 @@ void nk_recur(nk_struct *s) {
 	}
 
 	if (s->count_params != 0) {
-		fprintf(fout, "[params]\n");
-		nk_ls_params(s);
+		/*fprintf(fout, "[params]\n");
+		nk_ls_params(s);*/
+		
+		assert(ptr_not_null(s->ptr_params_index));
+		unsigned int count_index_records = s->count_params;
+		index_struct *index_params =
+				index_init(s->ptr_params_index, count_index_records);
+		unsigned int i;
+		for (i=0; i<count_index_records; ++i) {
+			fprintf(fout, "[param]\n");
+			vk_struct *vk = vk_init(index_params->ptr_blocks[i]);
+			vk_print_name(vk); fprintf(fout, "\n");
+			unsigned int j;
+			for (j=0; j<param_types_count && param_type_desc[j].type != vk->param_type; ++j);
+			fprintf(fout, "%s", param_type_desc[j].name);
+			if (j == param_types_count) fprintf(fout, "=%d", vk->param_type);
+			fprintf(fout, " (%d)\n", vk->size_param_value & ~0x80000000);
+			vk_print_value(vk);
+		}
 	}
 
 	if (ptr_not_null(s->ptr_chinds_index)) {
