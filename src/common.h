@@ -16,6 +16,9 @@
 #define assert_check2(condition) assert_check(condition, 2)
 
 #define check_struct_size(PREFIX) assert(sizeof(PREFIX##_struct) == PREFIX##_struct_size)
+#define check_array_size(array, size) assert(sizeof(array)/sizeof(array[0]) == size)
+
+#define enum_desc_item(item) {item, #item}
 
 extern FILE *fout;
 

@@ -14,8 +14,11 @@
 
 /* ********************************** */
 
-/*static const flag_desc sd_flags_desc[] = sd_flags_desc_value;*/
+static const flag_desc sd_flags_desc[] = sd_flags_desc_value;
+static const enum8_desc ace_types_desc[] = ace_types_desc_value;
+static const enum8_desc ace_flags_desc[] = ace_flags_desc_value;
 static const flag_desc access_mask_flags_desc[] = access_mask_flags_desc_value;
+
 uint8_t *sec_data = NULL;
 uint32_t sec_size = 0;
 
@@ -23,9 +26,13 @@ uint32_t sec_size = 0;
 
 void secstructs_check_size() {
 	check_struct_size(sd);
+	check_array_size(sd_flags_desc, sd_flags_count);
 	check_struct_size(acl);
 	check_struct_size(ace);
-	check_struct_size(ace_accall);
+	check_array_size(ace_types_desc, ace_types_count+1);
+	check_array_size(ace_flags_desc, ace_flags_count);
+	check_struct_size(ace_mask_sid);
+	check_array_size(access_mask_flags_desc, access_mask_flags_count);
 	check_struct_size(sid);
 }
 
@@ -110,29 +117,41 @@ void sid_print(sid_struct *s) {
 
 void access_mask_print(uint32_t mask) {
 	unsigned int i;
-	for (i=0; i<access_mask_flags_desc_count; ++i) {
-		if (mask & access_mask_flags_desc[i].flag) {
+	for (i=0; i<access_mask_flags_count; ++i)
+		if (mask & access_mask_flags_desc[i].flag)
 			fprintf(fout, "%s ", access_mask_flags_desc[i].short_name);
-		}
-	}
 }
 
 void ace_print(ace_struct *s) {
+	unsigned int i;
+	
+	/* type */
+	for (i=0; i<ace_types_count && ace_types_desc[i].value != s->type ; ++i);
+	fprintf(fout, "type = %s\n", ace_types_desc[i].name);
+	
+	/* flags */
+	fprintf(fout, "flags: ");
+	for (i=0; i<ace_flags_count; ++i)
+		if (s->flags & ace_flags_desc[i].value)
+			fprintf(fout, "%s ", ace_flags_desc[i].name);
+	fprintf(fout, "\n");
+	
 	switch (s->type) {
-	case 0: {
-		ace_accall_struct *accall = (ace_accall_struct *)s;
-		/* TODO: flags */
-		fprintf(fout, "mask = ");
-		access_mask_print(accall->mask);
+	case ACCESS_ALLOWED_ACE_TYPE:
+	case ACCESS_DENIED_ACE_TYPE:
+	case SYSTEM_AUDIT_ACE_TYPE: {
+		ace_mask_sid_struct *ace = (ace_mask_sid_struct *)s;
+		fprintf(fout, "mask: ");
+		access_mask_print(ace->mask);
 		fprintf(fout, "\n");
 		fprintf(fout, "sid = ");
-		sid_print((sid_struct *)accall->sid);
+		sid_print((sid_struct *)ace->sid);
 		fprintf(fout, "\n");
+		fprintf(fout, "-----\n");
 		break;
 	}
-	/* TODO: case 1 */
 	default: {
-		fprintf(fout, "unsupported ace type %d\n", s->type);
+		fprintf(fout, "unsupported ace type\n");
 		break;
 	}
 	}
@@ -155,6 +174,13 @@ void acl_print(acl_struct *s) {
 }
 
 void sd_print(sd_struct *s) {
+	fprintf(fout, "flags: ");
+	unsigned int i;
+	for (i=0; i<sd_flags_count; ++i)
+		if (s->control & sd_flags_desc[i].flag)
+			fprintf(fout, "%s ", sd_flags_desc[i].short_name);
+	fprintf(fout, "\n");
+
 	if (!flag_is_seted(s->control, SDF_OD)) {
 		fprintf(fout, "owner = ");
 		sid_print(sid_init(s->offset_owner));

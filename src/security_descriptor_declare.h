@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "common.h"
+
 #pragma pack(push,1)
 typedef struct {
 	uint8_t revision;
@@ -41,6 +43,7 @@ typedef enum {
 	SDF_GD = 0x0002,
 	SDF_OD = 0x0001,
 } sd_flags;
+#define sd_flags_count 16
 
 #define sd_flags_desc_value { \
 		{SDF_SR, "SR", "Self-Relative"}, \
@@ -60,7 +63,6 @@ typedef enum {
 		{SDF_GD, "GD", "Group Defaulted"}, \
 		{SDF_OD, "OD", "Owner Defaulted"} \
 }
-#define sd_flags_desc_count (sizeof(sd_flags_desc) / sizeof(sd_flags_desc[0]))
 
 #pragma pack(push,1)
 typedef struct {
@@ -82,6 +84,80 @@ typedef struct {
 #pragma pack(pop)
 #define ace_struct_size 0x04
 
+typedef enum {
+	ACCESS_ALLOWED_ACE_TYPE =				0x00,
+	ACCESS_DENIED_ACE_TYPE =				0x01,
+	SYSTEM_AUDIT_ACE_TYPE =					0x02,
+	SYSTEM_ALARM_ACE_TYPE =					0x03,
+	ACCESS_ALLOWED_COMPOUND_ACE_TYPE =		0x04,
+	ACCESS_ALLOWED_OBJECT_ACE_TYPE =		0x05,
+	ACCESS_DENIED_OBJECT_ACE_TYPE =			0x06,
+	SYSTEM_AUDIT_OBJECT_ACE_TYPE =			0x07,
+	SYSTEM_ALARM_OBJECT_ACE_TYPE =			0x08,
+	ACCESS_ALLOWED_CALLBACK_ACE_TYPE =		0x09,
+	ACCESS_DENIED_CALLBACK_ACE_TYPE =		0x0A,
+	ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE=0x0B,
+	ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE=	0x0C,
+	SYSTEM_AUDIT_CALLBACK_ACE_TYPE =		0x0D,
+	SYSTEM_ALARM_CALLBACK_ACE_TYPE =		0x0E,
+	SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE =	0x0F,
+	SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE =	0x10,
+	SYSTEM_MANDATORY_LABEL_ACE_TYPE =		0x11,
+	SYSTEM_RESOURCE_ATTRIBUTE_ACE_TYPE =	0x12,
+	SYSTEM_SCOPED_POLICY_ID_ACE_TYPE =		0x13
+} ace_types;
+#define ace_types_count 20
+
+typedef struct {
+	uint8_t value;
+	const char*const name;
+} enum8_desc;
+
+#define ace_types_desc_value { \
+		enum_desc_item(ACCESS_ALLOWED_ACE_TYPE), \
+		enum_desc_item(ACCESS_DENIED_ACE_TYPE), \
+		enum_desc_item(SYSTEM_AUDIT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_ALARM_ACE_TYPE), \
+		enum_desc_item(ACCESS_ALLOWED_COMPOUND_ACE_TYPE), \
+		enum_desc_item(ACCESS_ALLOWED_OBJECT_ACE_TYPE), \
+		enum_desc_item(ACCESS_DENIED_OBJECT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_AUDIT_OBJECT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_ALARM_OBJECT_ACE_TYPE), \
+		enum_desc_item(ACCESS_ALLOWED_CALLBACK_ACE_TYPE), \
+		enum_desc_item(ACCESS_DENIED_CALLBACK_ACE_TYPE), \
+		enum_desc_item(ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE), \
+		enum_desc_item(ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_AUDIT_CALLBACK_ACE_TYPE), \
+		enum_desc_item(SYSTEM_ALARM_CALLBACK_ACE_TYPE), \
+		enum_desc_item(SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE), \
+		enum_desc_item(SYSTEM_MANDATORY_LABEL_ACE_TYPE), \
+		enum_desc_item(SYSTEM_RESOURCE_ATTRIBUTE_ACE_TYPE), \
+		enum_desc_item(SYSTEM_SCOPED_POLICY_ID_ACE_TYPE), \
+		{-1, "UNKNOWN TYPE"} \
+}
+
+typedef enum {
+	CONTAINER_INHERIT_ACE =		0x02,
+	FAILED_ACCESS_ACE_FLAG =	0x80,
+	INHERIT_ONLY_ACE =			0x08,
+	INHERITED_ACE =				0x10,
+	NO_PROPAGATE_INHERIT_ACE =	0x04,
+	OBJECT_INHERIT_ACE =		0x01,
+	SUCCESSFUL_ACCESS_ACE_FLAG=	0x40
+} ace_flags;
+#define ace_flags_count 7
+
+#define ace_flags_desc_value { \
+		enum_desc_item(CONTAINER_INHERIT_ACE), \
+		enum_desc_item(FAILED_ACCESS_ACE_FLAG), \
+		enum_desc_item(INHERIT_ONLY_ACE), \
+		enum_desc_item(INHERITED_ACE), \
+		enum_desc_item(NO_PROPAGATE_INHERIT_ACE), \
+		enum_desc_item(OBJECT_INHERIT_ACE), \
+		enum_desc_item(SUCCESSFUL_ACCESS_ACE_FLAG) \
+}
+
 #pragma pack(push,1)
 typedef struct {
 	uint8_t type;
@@ -89,9 +165,9 @@ typedef struct {
 	uint16_t size;
 	uint32_t mask;
 	uint8_t sid[];
-} __attribute__ ((__packed__)) ace_accall_struct;
+} __attribute__ ((__packed__)) ace_mask_sid_struct;
 #pragma pack(pop)
-#define ace_accall_struct_size 0x08
+#define ace_mask_sid_struct_size 0x08
 
 typedef enum {
 	AM_GR = 0x80000000,
@@ -106,6 +182,7 @@ typedef enum {
 	AM_RC = 0x00020000,
 	AM_DE = 0x00010000
 } access_mask_flags;
+#define access_mask_flags_count 11
 
 #define access_mask_flags_desc_value { \
 		{AM_GR, "GR", "GENERIC_READ"}, \
@@ -120,8 +197,6 @@ typedef enum {
 		{AM_RC, "RC", "READ_CONTROL"}, \
 		{AM_DE, "DE", "DELETE"} \
 }
-#define access_mask_flags_desc_count \
-	(sizeof(access_mask_flags_desc) / sizeof(access_mask_flags_desc[0]))
 
 #pragma pack(push,1)
 typedef struct {

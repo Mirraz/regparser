@@ -46,6 +46,8 @@ void structs_check_size() {
 
 	check_struct_size(signature);
 	
+	check_array_size(param_type_desc, param_types_count+1);
+	
 	secstructs_check_size();
 }
 

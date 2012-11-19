@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "common.h"
+
 /* ********************************** */
 
 #define regf_header_size 0x1000
@@ -206,7 +208,7 @@ typedef enum {
 	REG_RESOURCE_LIST = 0x08,
 	REG_FULL_RESOURCE_DESCRIPTOR = 0x09,
 	REG_RESOURCE_REQUIREMENTS_LIST = 0x0A,
-	REG_QWORD = 0x0B
+	REG_QWORD =		0x0B
 } param_types;
 #define param_types_count 12
 
@@ -215,22 +217,20 @@ typedef struct {
 	const char* const name;
 } param_type_desc_struct;
 
-#define param_type_desc_item(type) {type, #type}
-
 #define param_type_desc_value { \
-	param_type_desc_item(REG_NONE), \
-	param_type_desc_item(REG_SZ), \
-	param_type_desc_item(REG_EXPAND_SZ), \
-	param_type_desc_item(REG_BINARY), \
-	param_type_desc_item(REG_DWORD), \
-	param_type_desc_item(REG_DWORD_BIG_ENDIAN), \
-	param_type_desc_item(REG_LINK), \
-	param_type_desc_item(REG_MULTI_SZ), \
-	param_type_desc_item(REG_RESOURCE_LIST), \
-	param_type_desc_item(REG_FULL_RESOURCE_DESCRIPTOR), \
-	param_type_desc_item(REG_RESOURCE_REQUIREMENTS_LIST), \
-	param_type_desc_item(REG_QWORD), \
-	{-1, "UNKNOWN"} \
+		enum_desc_item(REG_NONE), \
+		enum_desc_item(REG_SZ), \
+		enum_desc_item(REG_EXPAND_SZ), \
+		enum_desc_item(REG_BINARY), \
+		enum_desc_item(REG_DWORD), \
+		enum_desc_item(REG_DWORD_BIG_ENDIAN), \
+		enum_desc_item(REG_LINK), \
+		enum_desc_item(REG_MULTI_SZ), \
+		enum_desc_item(REG_RESOURCE_LIST), \
+		enum_desc_item(REG_FULL_RESOURCE_DESCRIPTOR), \
+		enum_desc_item(REG_RESOURCE_REQUIREMENTS_LIST), \
+		enum_desc_item(REG_QWORD), \
+		{-1, "UNKNOWN TYPE"} \
 }
 
 /* ********************************** */
