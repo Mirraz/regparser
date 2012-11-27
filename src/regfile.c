@@ -239,8 +239,6 @@ signature_struct *signature_init(uint32_t ptr) {
 
 /* ********************************** */
 
-FILE *fout = NULL;
-
 void nk_print_name(nk_struct *s) {
 	assert(s != NULL);
 	if (s->flag & 0x20) {
