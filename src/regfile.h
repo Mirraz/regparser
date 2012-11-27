@@ -9,6 +9,8 @@ void structs_check_size();
 regf_struct *regf_init(regf_struct *s);
 void set_data(uint8_t *data_);
 
+hbin_struct *hbin_init(uint32_t ptr);
+
 nk_struct *nk_init(uint32_t ptr);
 void nk_print_name(nk_struct *s);
 void nk_print_class(nk_struct *s);

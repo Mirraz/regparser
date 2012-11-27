@@ -35,3 +35,14 @@ $(BUILD_DIR)/codepages.o: $(SRC_DIR)/codepages.c $(SRC_DIR)/codepages.h Makefile
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+
+
+blocks: $(BUILD_DIR) blocks.out
+
+blocks.out: $(BUILD_DIR)/blocks.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/security_descriptor.o $(BUILD_DIR)/codepages.o
+	$(LD) -o blocks $^ $(LDFLAGS)
+
+$(BUILD_DIR)/blocks.o: $(SRC_DIR)/blocks.c $(SRC_DIR)/common.h $(SRC_DIR)/regfile.h $(SRC_DIR)/regfile_declare.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
