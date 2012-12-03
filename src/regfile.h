@@ -19,5 +19,6 @@ void vk_print_name(vk_struct *s);
 void nk_ls_params(nk_struct *s);
 void nk_ls_childs(nk_struct *s);
 void nk_recur(nk_struct *s);
+nk_struct *nk_cd(nk_struct *s, const char *path);
 
 #endif /* REGFILE_H_ */

@@ -1,7 +1,9 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <endian.h>
+#include <string.h>
 
 #include "common.h"
 #include "codepages.h"
@@ -520,5 +522,86 @@ void nk_recur(nk_struct *s) {
 	if (ptr_not_null(s->ptr_chinds_index)) {
 		parse_childs(s->ptr_chinds_index, &nk_recur);
 	}
+}
+
+int nk_check_name(nk_struct *s, const char* name, uint32_t size_name) {
+	if (s->size_key_name != size_name) return 1;
+	return strncmp((const char *)&(s->key_name), name, size_name);
+}
+
+typedef struct {
+	int res;
+	nk_struct *nk;
+} nk_cd_parse_childs_res;
+
+nk_cd_parse_childs_res nk_cd_parse_childs(uint32_t ptr_chinds_index, const char* name, uint32_t size_name) {
+	assert(ptr_not_null(ptr_chinds_index));
+	signature_struct *sig = signature_init(ptr_chinds_index);
+	switch (sig->signature) {
+	case lf_signature: {
+		lf_struct *lf = lf_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<lf->count_records; ++i) {
+			nk_struct *nk = nk_init(lf->records[i].ptr_nk);
+			if (!nk_check_name(nk, name, size_name)) {
+				nk_cd_parse_childs_res res = {.res = 0, .nk = nk};
+				return res;
+			}
+		}
+		break;
+	}
+	case lh_signature: {
+		lh_struct *lh = lh_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<lh->count_records; ++i) {
+			nk_struct *nk = nk_init(lh->records[i].ptr_nk);
+			if (!nk_check_name(nk, name, size_name)) {
+				nk_cd_parse_childs_res res = {.res = 0, .nk = nk};
+				return res;
+			}
+		}
+		break;
+	}
+	case li_signature: {
+		//li_struct *li1 = (li_struct *)(data + ptr_chinds_index);
+fprintf(stderr, "li\n");
+		break;
+	}
+	case ri_signature: {
+		ri_struct *ri = ri_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<ri->count_records; ++i) {
+			nk_cd_parse_childs_res res = nk_cd_parse_childs(ri->ptr_indexes[i], name, size_name);
+			if (!res.res) return res;
+		}
+		break;
+	}
+	default:
+	{
+		assert(0);
+		break;
+	}
+	}
+	nk_cd_parse_childs_res res = {.res = 1, .nk = NULL};
+	return res;
+}
+
+nk_struct *nk_cd(nk_struct *s, const char *path) {
+	const char *end_token;
+	do {
+		end_token = strchrnul(path, '/');
+		assert(end_token - path >= 0);
+		size_t length = end_token - path;
+		if (length > 0) {
+			
+			if (ptr_is_null(s->ptr_chinds_index)) return NULL;
+			nk_cd_parse_childs_res res = nk_cd_parse_childs(s->ptr_chinds_index, path, length);
+			if (res.res) return NULL;
+			
+			s = res.nk;
+		}
+		path = end_token+1;
+	} while (*end_token != '\0');
+	return s;
 }
 

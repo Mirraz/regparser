@@ -10,12 +10,14 @@
 #include "common.h"
 #include "regfile.h"
 
+#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+
 FILE *fout;
 
 int main (int argc, char *argv[]) {
 	structs_check_size();
 
-	assert(argc == 2);
+	assert(argc == 3);
 	int fd = open(argv[1], O_RDONLY);
 
 	static regf_struct header_data;
@@ -31,8 +33,18 @@ int main (int argc, char *argv[]) {
 	set_data(data);
 
 	fout = stdout;
-
-	nk_recur(nk_init(header->ptr_root_nk));
+	nk_struct *s = nk_cd(nk_init(header->ptr_root_nk), argv[2]);
+	if (s != NULL) {
+		fprintf(fout, "[key name]\n");
+		nk_print_name(s);
+		fprintf(fout, "\n");
+		if (ptr_not_null(s->ptr_chinds_index)) {
+			fprintf(fout, "[childs]\n");
+			nk_ls_childs(s);
+		}
+	} else {
+		fprintf(fout, "Not found\n");
+	}
 
 	assert(!munmap(data, mmap_file_size));
 	assert(!close(fd));
