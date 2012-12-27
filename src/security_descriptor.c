@@ -147,7 +147,6 @@ void ace_print(ace_struct *s) {
 		fprintf(fout, "sid = ");
 		sid_print((sid_struct *)ace->sid);
 		fprintf(fout, "\n");
-		fprintf(fout, "-----\n");
 		break;
 	}
 	default: {
@@ -167,6 +166,7 @@ void acl_print(acl_struct *s) {
 		assert_check1(remainder >= ace->size);
 
 		ace_print(ace);
+		if (i+1 != s->ace_count) fprintf(fout, "-----\n");
 
 		prev_ace_size = ace->size;
 		remainder -= ace->size;

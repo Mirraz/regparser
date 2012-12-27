@@ -27,6 +27,7 @@
 static const param_type_desc_struct param_type_desc[] = param_type_desc_value;
 uint8_t *data = NULL;
 uint32_t size_data_area = 0;
+uint32_t ptr_nk_root = 0;
 
 /* ********************************** */
 
@@ -66,6 +67,7 @@ regf_struct *regf_init(regf_struct *s) {
 	// TODO: check checksum
 
 	size_data_area = s->size_data_area;
+	ptr_nk_root = s->ptr_root_nk;
 	assert_check1(check_ptr(s->ptr_root_nk));
 
 	return s;
@@ -473,27 +475,40 @@ void nk_ls_childs(nk_struct *s) {
 	parse_childs(s->ptr_chinds_index, &nk_ls_childs_cb);
 }
 
-void nk_recur(nk_struct *s) {
+void nk_print_pwd(nk_struct *s) {
+	if (s != (nk_struct *)(data + ptr_nk_root)) {
+		nk_print_pwd(nk_init(s->ptr_parent));
+		fprintf(fout, "/");
+		nk_print_name(s);
+	}
+}
+
+void nk_print_verbose(nk_struct *s) {
 	assert(s != NULL);
+
+	fprintf(fout, "[path]\n");
+	nk_print_pwd(s);
+	fprintf(fout, "\n---------------\n");
 
 	fprintf(fout, "[key name]\n");
 	nk_print_name(s);
-	fprintf(fout, "\n");
+	fprintf(fout, "\n---------------\n");
 
 	if (ptr_not_null(s->ptr_class_name)) {
 		fprintf(fout, "[key class]\n");
 		nk_print_class(s);
-		fprintf(fout, "\n");
+		fprintf(fout, "\n---------------\n");
 	}
 
 	if (ptr_not_null(s->ptr_sk)) {
 		fprintf(fout, "[sk]\n");
 		nk_print_sk(s);
+		fprintf(fout, "---------------\n");
 	}
 
 	if (s->count_params != 0) {
-		/*fprintf(fout, "[params]\n");
-		nk_ls_params(s);*/
+		fprintf(fout, "[params]\n");
+		/*nk_ls_params(s);*/
 		
 		assert(ptr_not_null(s->ptr_params_index));
 		unsigned int count_index_records = s->count_params;
@@ -501,7 +516,6 @@ void nk_recur(nk_struct *s) {
 				index_init(s->ptr_params_index, count_index_records);
 		unsigned int i;
 		for (i=0; i<count_index_records; ++i) {
-			fprintf(fout, "[param]\n");
 			vk_struct *vk = vk_init(index_params->ptr_blocks[i]);
 			vk_print_name(vk); fprintf(fout, "\n");
 			unsigned int j;
@@ -510,14 +524,24 @@ void nk_recur(nk_struct *s) {
 			if (j == param_types_count) fprintf(fout, "=%d", vk->param_type);
 			fprintf(fout, " (%d)\n", vk->size_param_value & ~0x80000000);
 			vk_print_value(vk);
+			if (i+1 != count_index_records) fprintf(fout, "-----\n");
 		}
+		fprintf(fout, "---------------\n");
 	}
 
 	if (ptr_not_null(s->ptr_chinds_index)) {
 		fprintf(fout, "[childs]\n");
 		nk_ls_childs(s);
+		fprintf(fout, "---------------\n");
 	}
-	fprintf(fout, "===============\n");
+}
+
+void nk_recur(nk_struct *s) {
+	assert(s != NULL);
+
+	nk_print_verbose(s);
+
+	fprintf(fout, "============================\n");
 
 	if (ptr_not_null(s->ptr_chinds_index)) {
 		parse_childs(s->ptr_chinds_index, &nk_recur);
