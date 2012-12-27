@@ -18,10 +18,13 @@ all: $(BUILD_DIR) $(EXECUTABLE)
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(EXECUTABLE): $(BUILD_DIR)/main.o
+$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c Makefile
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 clean:
