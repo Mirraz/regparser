@@ -1,92 +1,177 @@
 #include <stdio.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <getopt.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
 
-#include "common.h"
-#include "regfile.h"
+#include <locale.h>
+#include <ncurses.h>
 
-#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+#define KEY_ESC 27
 
-FILE *fout;
+FILE *flog;
 
-void usage(const char *prog_name) {
-	printf("Usage: %s [-h] [-r] regfile_path key_path\n", prog_name);
+/* ****************** */
+
+typedef struct {
+	WINDOW *outer_box;
+	unsigned int outer_box_width;
+	unsigned int outer_box_height;
+	unsigned int disp_item_idx_first;
+	unsigned int disp_item_idx_selected;
+	const char **items_list;
+	unsigned int items_count;
+} scroll_struct;
+
+inline static void scroll_check_data(scroll_struct *scroll) {
+	assert(scroll->outer_box != NULL);
+	assert(scroll->items_list != NULL);
+	assert(scroll->disp_item_idx_first <= scroll->items_count);
+	assert(scroll->disp_item_idx_selected <= scroll->items_count);
+	assert(scroll->disp_item_idx_selected >= scroll->disp_item_idx_first);
+	assert(scroll->disp_item_idx_selected < scroll->disp_item_idx_first + scroll->outer_box_height);
 }
 
-int main (int argc, char *argv[]) {
-	structs_check_size();
-	
-	bool recursive_flag = false;
-	const char *regfile_path = NULL;
-	const char *key_path = NULL;
-	
-	static const struct option long_options[] = {
-		{"help",       no_argument,       NULL, 'h'},
-		{"recursive",  no_argument,       NULL, 'r'},
-		{0, 0, 0, 0}
-	};
-	static const char short_options[] = "hr";
-	do {
-		int option_index = 0;
-		int c = getopt_long(argc, argv, short_options, long_options, &option_index);
-		if (c == -1) break;
-		switch (c) {
-		case 'r':
-			recursive_flag = true;
-			break;
-		case 'h':
-		case '?':
-		default:
-			usage(argv[0]);
-			return 0;
-		}
-	} while (1);
-	if (argc != optind + 2) {
-		usage(argv[0]);
-		return 0;
+void scroll_update(scroll_struct *scroll) {
+	scroll_check_data(scroll);
+	wclear(scroll->outer_box);
+	unsigned int idx;
+	for (
+		idx=scroll->disp_item_idx_first;
+		idx < scroll->disp_item_idx_first + scroll->outer_box_height;
+		++idx
+	) {
+		if (idx == scroll->disp_item_idx_selected) wattron(scroll->outer_box, A_REVERSE);
+		wmove(scroll->outer_box, idx-scroll->disp_item_idx_first, 0);
+		wprintw(scroll->outer_box, "%.*s", scroll->outer_box_width, scroll->items_list[idx]);
+		if (idx == scroll->disp_item_idx_selected) wattroff(scroll->outer_box, A_REVERSE);
 	}
-	regfile_path = argv[optind++];
-	key_path = argv[optind];
-	
-	
-	int fd = open(regfile_path, O_RDONLY);
+	curs_set(0);
+	wrefresh(scroll->outer_box);
+}
 
-	static regf_struct header_data;
-	regf_struct *header = &header_data;
-	ssize_t red = read(fd, header, regf_struct_size);
-	assert(red == regf_struct_size);
-	regf_init(header);
+void scroll_up(scroll_struct *scroll) {
+	scroll_check_data(scroll);
+	if (scroll->disp_item_idx_selected == 0) return;
+	--scroll->disp_item_idx_selected;
+	if (scroll->disp_item_idx_selected < scroll->disp_item_idx_first) {
+		--scroll->disp_item_idx_first;
+	}
+	return scroll_update(scroll);
+}
 
-	size_t mmap_file_size = header->size_data_area;
-	uint8_t *data = mmap(NULL, mmap_file_size,
-			PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
-	assert(data != MAP_FAILED);
-	set_data(data);
+void scroll_down(scroll_struct *scroll) {
+	scroll_check_data(scroll);
+	if (scroll->disp_item_idx_selected + 1 == scroll->items_count) return;
+	++scroll->disp_item_idx_selected;
+	if (scroll->disp_item_idx_selected >= scroll->disp_item_idx_first + scroll->outer_box_height) {
+		++scroll->disp_item_idx_first;
+	}
+	return scroll_update(scroll);
+}
 
-	fout = stdout;
-	nk_struct *root = nk_init(header->ptr_root_nk);
-	nk_struct *s = nk_cd(root, key_path);
-
-	if (s != NULL) {
-		if (recursive_flag) {
-			nk_recur(s);
-		} else {
-			nk_print_verbose(s);
-		}
+void scroll_pageup(scroll_struct *scroll) {
+	scroll_check_data(scroll);
+	if (scroll->disp_item_idx_selected == 0) return;
+	if (scroll->disp_item_idx_selected < scroll->outer_box_height) {
+		scroll->disp_item_idx_selected = 0;
 	} else {
-		fprintf(fout, "Not found\n");
+		scroll->disp_item_idx_selected -= scroll->outer_box_height;
 	}
+	if (scroll->disp_item_idx_selected < scroll->disp_item_idx_first) {
+		scroll->disp_item_idx_first = scroll->disp_item_idx_selected;
+	}
+	return scroll_update(scroll);
+}
 
-	assert(!munmap(data, mmap_file_size));
-	assert(!close(fd));
+void scroll_pagedown(scroll_struct *scroll) {
+	scroll_check_data(scroll);
+	if (scroll->disp_item_idx_selected + 1 == scroll->items_count) return;
+	if (scroll->disp_item_idx_selected + 2*scroll->outer_box_height >= scroll->items_count) {
+		scroll->disp_item_idx_selected = scroll->items_count-1;
+	} else {
+		scroll->disp_item_idx_selected += scroll->outer_box_height;
+	}
+	if (scroll->disp_item_idx_selected >= scroll->disp_item_idx_first + scroll->outer_box_height) {
+		scroll->disp_item_idx_first = scroll->disp_item_idx_selected + 1 - scroll->outer_box_height;
+	}
+	return scroll_update(scroll);
+}
 
+void scroll_ch(scroll_struct *scroll, int ch) {
+	switch(ch) {
+	case KEY_UP:
+		scroll_up(scroll);
+		break;
+	case KEY_DOWN:
+		scroll_down(scroll);
+		break;
+	case KEY_PPAGE:
+		scroll_pageup(scroll);
+		break;
+	case KEY_NPAGE:
+		scroll_pagedown(scroll);
+		break;
+	}
+}
+
+/* ****************** */
+
+int main() { // int argc, char **argv) {
+flog = fopen("debug.log", "w");
+
+	int res;
+
+	setlocale(LC_CTYPE, "");
+	
+	WINDOW *win_main = initscr();	// == stdscr
+	cbreak();
+	noecho();
+	keypad(win_main, TRUE);
+	
+	WINDOW *panel_border_keys = derwin(win_main, 25, 40, 0, 0);
+	res = wborder(
+		panel_border_keys,
+		ACS_VLINE, ACS_VLINE, ACS_HLINE, ACS_HLINE,
+		ACS_ULCORNER, ACS_TTEE, ACS_LLCORNER, ACS_BTEE
+	);
+	WINDOW *panel_keys = derwin(panel_border_keys, 23, 38, 1, 1);
+	
+	WINDOW *panel_border_params = derwin(win_main, 25, 40, 0, 39);
+	res = wborder(
+		panel_border_params,
+		ACS_VLINE, ACS_VLINE, ACS_HLINE, ACS_HLINE,
+		ACS_TTEE, ACS_URCORNER, ACS_BTEE, ACS_LRCORNER
+	);
+	WINDOW *panel_params = derwin(panel_border_params, 23, 38, 1, 1);	
+	
+	
+	char items[100][80];
+	const char *items_list[100];
+	unsigned int i;
+	for (i=0; i<100; ++i) {
+		sprintf(items[i], "item%02u", i);
+		items_list[i] = (const char *)items[i];
+	}
+	scroll_struct scroll_keys = {
+		.outer_box = panel_keys,
+		.outer_box_width = 38,
+		.outer_box_height = 23,
+		.disp_item_idx_first = 0,
+		.disp_item_idx_selected = 3,
+		.items_list = items_list,
+		.items_count = 100
+	};
+	scroll_update(&scroll_keys);
+	//refresh();
+	
+	int ch;
+	do {
+		ch = getch();
+		//fprintf(flog, "[%u]\n", ch); fflush(flog);
+		scroll_ch(&scroll_keys, ch);
+	} while (ch != 'q');
+	
+	endwin();
+	
+fclose(flog);
 	return 0;
 }
 
