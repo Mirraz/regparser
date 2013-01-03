@@ -10,43 +10,49 @@ FILE *flog;
 
 /* ****************** */
 
-WINDOW *win_main;
-WINDOW *panel_border_keys;
-WINDOW *panel_keys;
-WINDOW *panel_border_params;
-WINDOW *panel_params;
+struct {
+	WINDOW *win_keys;
+	WINDOW *win_params;
+	unsigned int main_width;
+	unsigned int main_height;
+	unsigned int win_keys_width;
+} wins;
 
-void widg_main_init() {
-	int res;
-
-	setlocale(LC_CTYPE, "");
+void widg_main_update() {
+	assert(wins.win_keys_width > 0);
+	assert(wins.win_keys_width < wins.main_width);
 	
-	win_main = initscr();	// == stdscr
-	cbreak();
-	noecho();
-	keypad(win_main, TRUE);
-	
-	panel_border_keys = derwin(win_main, 25, 40, 0, 0);
-	res = wborder(
-		panel_border_keys,
-		ACS_VLINE, ACS_VLINE, ACS_HLINE, ACS_HLINE,
-		ACS_ULCORNER, ACS_TTEE, ACS_LLCORNER, ACS_BTEE
+	wresize(
+		wins.win_keys,
+		wins.main_height - 2,
+		wins.win_keys_width - 2
 	);
-	panel_keys = derwin(panel_border_keys, 23, 38, 1, 1);
+	wnoutrefresh(wins.win_keys);
 	
-	panel_border_params = derwin(win_main, 25, 40, 0, 39);
-	res = wborder(
-		panel_border_params,
-		ACS_VLINE, ACS_VLINE, ACS_HLINE, ACS_HLINE,
-		ACS_TTEE, ACS_URCORNER, ACS_BTEE, ACS_LRCORNER
+	mvwin(wins.win_params, 1, wins.win_keys_width);
+	wresize(
+		wins.win_params,
+		wins.main_height - 2,
+		wins.main_width - wins.win_keys_width - 3
 	);
-	panel_params = derwin(panel_border_params, 23, 38, 1, 1);
+	wnoutrefresh(wins.win_params);
 	
-	//refresh();
+	clear();
+	box(stdscr, 0, 0);
+	move(0, wins.win_keys_width-1);
+	addch(ACS_TTEE);
+	move(1, wins.win_keys_width-1);
+	vline(ACS_VLINE, wins.main_height-2);
+	move(wins.main_height-1, wins.win_keys_width-1);
+	addch(ACS_BTEE);
+	wnoutrefresh(stdscr);
+	
+	doupdate();
 }
 
-void widg_main_uninit() {
-	endwin();
+void widg_main_init() {
+	wins.win_keys = newwin(1, 1, 1, 1);
+	wins.win_params = newwin(1, 1, 1, 3);
 }
 
 typedef enum {
@@ -74,9 +80,9 @@ void widg_keys_init() {
 	}
 	
 	scroll_struct scroll_keys_ = {
-		.outer_box = panel_keys,
-		.outer_box_width = 38,
-		.outer_box_height = 23,
+		.outer_box = wins.win_keys,
+		.outer_box_width = wins.win_keys_width - 2,
+		.outer_box_height = wins.main_height - 2,
 		.disp_item_idx_first = 0,
 		.disp_item_idx_selected = 0,
 		.items_list = items_list,
@@ -93,6 +99,11 @@ void widg_keys_ch(int ch) {
 		widg_params_init();
 		current_widget = WIDG_PANEL_PARAMS;
 		break;
+	case KEY_RESIZE:
+		scroll_keys.outer_box_width = wins.win_keys_width - 2;
+		scroll_keys.outer_box_height = wins.main_height - 2;
+		scroll_update(&scroll_keys);
+		break;
 	case KEY_ENTER:
 		// #####
 		break;
@@ -108,9 +119,9 @@ scroll_struct scroll_params;
 
 void widg_params_init() {
 	scroll_struct scroll_params_ = {
-		.outer_box = panel_params,
-		.outer_box_width = 38,
-		.outer_box_height = 23,
+		.outer_box = wins.win_params,
+		.outer_box_width = wins.main_width - wins.win_keys_width - 3,
+		.outer_box_height = wins.main_height - 2,
 		.disp_item_idx_first = 0,
 		.disp_item_idx_selected = 0,
 		.items_list = items_list,
@@ -132,6 +143,11 @@ void widg_params_ch(int ch) {
 		widg_params_clear();
 		current_widget = WIDG_PANEL_KEYS;
 		break;
+	case KEY_RESIZE:
+		scroll_params.outer_box_width = wins.main_width - wins.win_keys_width - 3;
+		scroll_params.outer_box_height = wins.main_height - 2;
+		scroll_update(&scroll_params);
+		break;
 	case KEY_ENTER:
 		// #####
 		break;
@@ -146,28 +162,48 @@ void widg_params_ch(int ch) {
 int main() { // int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
+	setlocale(LC_CTYPE, "");
+	
+	initscr();
+	cbreak();
+	noecho();
+	keypad(stdscr, TRUE);
+
 	widg_main_init();
+	
+	getmaxyx(stdscr, wins.main_height, wins.main_width);
+	wins.win_keys_width = wins.main_width / 2 + 1;
+	widg_main_update();
+	
 	widg_keys_init();
 	current_widget = WIDG_PANEL_KEYS;
-	
+
 	int ch;
 	do {
 		ch = getch();
 		//fprintf(flog, "[%u]\n", ch); fflush(flog);
-		switch (current_widget) {
-		case WIDG_PANEL_KEYS:
-			widg_keys_ch(ch);
-			break;
-		case WIDG_PANEL_PARAMS:
-			widg_params_ch(ch);
-			break;
+		switch (ch) {
+		case KEY_RESIZE:
+			getmaxyx(stdscr, wins.main_height, wins.main_width);
+			wins.win_keys_width = wins.main_width / 2 + 1;
+			widg_main_update();
 		default:
-			assert(0);
+			switch (current_widget) {
+			case WIDG_PANEL_KEYS:
+				widg_keys_ch(ch);
+				break;
+			case WIDG_PANEL_PARAMS:
+				widg_params_ch(ch);
+				break;
+			default:
+				assert(0);
+				break;
+			}
 			break;
 		}
 	} while (ch != 'q');
 	
-	widg_main_uninit();
+	endwin();
 	
 fclose(flog);
 	return 0;
