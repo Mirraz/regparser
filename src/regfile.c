@@ -5,9 +5,14 @@
 #include <endian.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+
+#include "string_type.h"
 #include "parse_common.h"
-#include "codepages.h"
-#include "security_descriptor.h"
 #include "regfile_declare.h"
 #include "regfile.h"
 
@@ -17,19 +22,44 @@
 #define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
 
 #define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
-#define check_block_ptr() (ptr_not_null(ptr) && ptr < size_data_area)
-#define check_ptr(ptr) (ptr_is_null(ptr) || ptr < size_data_area)
-#define check_size(size) (size < size_data_area)
-#define check_block_size() (abs(s->size)+ptr <= size_data_area)
-
-/* ********************************** */
+#define check_block_ptr() (ptr_not_null(ptr) && ptr < header_data.size_data_area)
+#define check_ptr(ptr) (ptr_is_null(ptr) || ptr < header_data.size_data_area)
+#define check_size(size) (size < header_data.size_data_area)
+#define check_block_size() (abs(s->size)+ptr <= header_data.size_data_area)
 
 static const param_type_desc_struct param_type_desc[] = param_type_desc_value;
+
+int fd = -1;
+static regf_struct header_data;
+regf_struct *header = &header_data;
 uint8_t *data = NULL;
-uint32_t size_data_area = 0;
-uint32_t ptr_nk_root = 0;
 
 /* ********************************** */
+
+void structs_check_size();
+regf_struct *regf_init(regf_struct *s);
+
+uint32_t regfile_init(const char *regfile_path) {
+	structs_check_size();
+
+	fd = open(regfile_path, O_RDONLY);
+
+	ssize_t red = read(fd, header, regf_struct_size);
+	assert(red == regf_struct_size);
+	regf_init(header);
+
+	data = mmap(NULL, header->size_data_area,
+			PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
+	assert(data != MAP_FAILED);
+
+	return header->ptr_root_nk;
+}
+
+int regfile_uninit() {
+	int res1 = munmap(data, header->size_data_area);
+	int res2 = close(fd);
+	return res1 || res2;
+}
 
 void structs_check_size() {
 	check_struct_size(regf);
@@ -51,8 +81,9 @@ void structs_check_size() {
 	
 	check_array_size(param_type_desc, param_types_count+1);
 	
-	secstructs_check_size();
+	//secstructs_check_size();
 }
+
 
 /* ********************************** */
 
@@ -66,21 +97,12 @@ regf_struct *regf_init(regf_struct *s) {
 	assert_check1(s->stuff3 >= 1 && s->stuff3 <= 8);
 	// TODO: check checksum
 
-	size_data_area = s->size_data_area;
-	ptr_nk_root = s->ptr_root_nk;
 	assert_check1(check_ptr(s->ptr_root_nk));
 
 	return s;
 }
 
 /* ========= */
-
-void set_data(uint8_t *data_) {
-	assert(data_ != NULL);
-	data = data_;
-}
-
-/* ********************************** */
 
 hbin_struct *hbin_init(uint32_t ptr) {
 	assert_check2(check_block_ptr());
@@ -242,6 +264,10 @@ signature_struct *signature_init(uint32_t ptr) {
 }
 
 /* ********************************** */
+
+#if 0
+
+#include "codepages.h"
 
 void nk_print_name(nk_struct *s) {
 	assert(s != NULL);
@@ -476,7 +502,7 @@ void nk_ls_childs(nk_struct *s) {
 }
 
 void nk_print_pwd(nk_struct *s) {
-	if (s != (nk_struct *)(data + ptr_nk_root)) {
+	if (s != (nk_struct *)(data + header->ptr_root_nk)) {
 		nk_print_pwd(nk_init(s->ptr_parent));
 		fprintf(fout, "/");
 		nk_print_name(s);
@@ -629,3 +655,84 @@ nk_struct *nk_cd(nk_struct *s, const char *path) {
 	return s;
 }
 
+#endif
+
+/* ********************************** */
+
+string nk_get_name(uint32_t ptr) {
+	nk_struct *s = nk_init(ptr);
+	string name;
+	if (s->flag & 0x20) {
+		// ansi
+		name = string_new_from_ansi(s->key_name, s->size_key_name);
+	} else {
+		// unicode
+		name = string_new_from_unicode(s->key_name, (s->size_key_name)>>1);
+	}
+	return name;
+}
+
+void nk_childs_index_process(uint32_t ptr_chinds_index,
+			int (*callback)(uint32_t, void *), void *callback_data) {
+	assert(ptr_not_null(ptr_chinds_index));
+	signature_struct *sig = signature_init(ptr_chinds_index);
+	switch (sig->signature) {
+	case lf_signature: {
+		lf_struct *lf = lf_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<lf->count_records; ++i) {
+			nk_struct *nk = nk_init(lf->records[i].ptr_nk);
+			if (callback(lf->records[i].ptr_nk, callback_data)) return;
+		}
+		break;
+	}
+	case lh_signature: {
+		lh_struct *lh = lh_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<lh->count_records; ++i) {
+			if (callback(lh->records[i].ptr_nk, callback_data)) return;
+		}
+		break;
+	}
+	case li_signature: {
+		// TODO
+		//li_struct *li1 = (li_struct *)(data + ptr_chinds_index);
+		break;
+	}
+	case ri_signature: {
+		ri_struct *ri = ri_init(ptr_chinds_index);
+		unsigned int i;
+		for (i=0; i<ri->count_records; ++i) {
+			nk_childs_index_process(ri->ptr_indexes[i], callback, callback_data);
+		}
+		break;
+	}
+	default:
+	{
+		assert(0);
+		break;
+	}
+	}
+}
+
+void nk_childs_process(uint32_t ptr,
+		int (*callback)(uint32_t, void *), void *callback_data) {
+	nk_struct *nk = nk_init(ptr);
+	return nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data);
+}
+
+int child_print_name(uint32_t ptr, void *data) {
+	string name = nk_get_name(ptr);
+	string_print(name);
+	string_free(name);
+	return 0;
+}
+
+int main() {
+	uint32_t ptr_root = regfile_init("NTUSER.DAT");
+
+	nk_childs_process(ptr_root, child_print_name, NULL);
+
+	regfile_uninit();
+	return 0;
+}

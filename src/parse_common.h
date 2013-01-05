@@ -20,6 +20,4 @@
 
 #define enum_desc_item(item) {item, #item}
 
-extern FILE *fout;
-
 #endif /* PARSE_COMMON_H_ */
