@@ -6,6 +6,8 @@
 #include <ncurses.h>
 
 #include "widgets.h"
+#include "regfile.h"
+#include "parse_common.h"
 
 FILE *fout;
 FILE *flog;
@@ -139,8 +141,6 @@ int widg_main_ch(int ch) {
 }
 
 /* ****************** */
-
-#include <unistd.h>
 
 int main() {   // int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");

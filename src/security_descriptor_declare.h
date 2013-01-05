@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "common.h"
+#include "parse_common.h"
 
 #pragma pack(push,1)
 typedef struct {

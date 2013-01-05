@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "common.h"
+#include "parse_common.h"
 #include "security_descriptor_declare.h"
 #include "security_descriptor.h"
 

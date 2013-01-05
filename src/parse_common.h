@@ -1,5 +1,5 @@
-#ifndef COMMON_H_
-#define COMMON_H_
+#ifndef PARSE_COMMON_H_
+#define PARSE_COMMON_H_
 
 #include <endian.h>
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -22,4 +22,4 @@
 
 extern FILE *fout;
 
-#endif /* COMMON_H_ */
+#endif /* PARSE_COMMON_H_ */

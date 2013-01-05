@@ -18,13 +18,22 @@ all: $(BUILD_DIR) $(EXECUTABLE)
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o
+$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/security_descriptor.o $(BUILD_DIR)/codepages.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h Makefile
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/parse_common.h $(SRC_DIR)/regfile.h $(SRC_DIR)/regfile_declare.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 $(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/regfile.o: $(SRC_DIR)/regfile.c $(SRC_DIR)/parse_common.h $(SRC_DIR)/codepages.h $(SRC_DIR)/security_descriptor.h $(SRC_DIR)/regfile_declare.h $(SRC_DIR)/regfile.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/security_descriptor.o: $(SRC_DIR)/security_descriptor.c $(SRC_DIR)/parse_common.h $(SRC_DIR)/security_descriptor_declare.h $(SRC_DIR)/security_descriptor.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/codepages.o: $(SRC_DIR)/codepages.c $(SRC_DIR)/codepages.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 clean:

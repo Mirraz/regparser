@@ -5,7 +5,7 @@
 #include <endian.h>
 #include <string.h>
 
-#include "common.h"
+#include "parse_common.h"
 #include "codepages.h"
 #include "security_descriptor.h"
 #include "regfile_declare.h"
