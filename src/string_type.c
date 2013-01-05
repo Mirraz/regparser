@@ -61,8 +61,12 @@ int string_compare(string a, string b) {
 string_and_ptr_list list_new(unsigned int size) {
 	string_and_ptr_list res;
 	res.size = size;
-	res.entries = malloc(res.size * sizeof(res.entries[0]));
-	assert(res.entries != NULL);
+	if (size != 0) {
+		res.entries = malloc(res.size * sizeof(res.entries[0]));
+		assert(res.entries != NULL);
+	} else {
+		res.entries = NULL;
+	}
 	return res;
 }
 

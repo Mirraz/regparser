@@ -21,6 +21,7 @@
 
 #define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
 #define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+#define ptr_null ((uint32_t)-1)
 
 #define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
 #define check_block_ptr() (ptr_not_null(ptr) && ptr < header_data.size_data_area)
@@ -668,7 +669,7 @@ string nk_get_name(uint32_t ptr) {
 		name = string_new_from_ansi(s->key_name, s->size_key_name);
 	} else {
 		// unicode
-		name = string_new_from_unicode(s->key_name, (s->size_key_name)>>1);
+		name = string_new_from_unicode(s->key_name, s->size_key_name);
 	}
 	return name;
 }
@@ -762,8 +763,119 @@ string_and_ptr_list nk_get_childs_list(uint32_t ptr) {
 	return res;
 }
 
+int childs_find(uint32_t ptr, void *data) {
+	string_and_ptr *find_child = (string_and_ptr *)data;
+	string cur_name = nk_get_name(ptr);
+	int res = string_compare(cur_name, find_child->str);
+	if (res == 0) {
+		find_child->ptr = ptr;
+	}
+	string_free(cur_name);
+	return !res;
+}
+
+uint32_t nk_find_child(uint32_t ptr, string name) {
+	string_and_ptr find = {.str = name, .ptr = ptr_null};
+	nk_childs_process(ptr, childs_find, &find);
+	return find.ptr;
+}
+
+string vk_get_name(uint32_t ptr) {
+	vk_struct *s = vk_init(ptr);
+	if (s->size_param_name == 0) {
+		string name = {.str = NULL, .len = 0};
+		return name;
+	} else {
+		string name;
+		if (s->flag & 1) {
+			// ansi
+			name = string_new_from_ansi(s->param_name, s->size_param_name);
+		} else {
+			// unicode
+			name = string_new_from_unicode(s->param_name, s->size_param_name);
+		}
+		return name;
+	}
+}
+
+string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
+	nk_struct *s = nk_init(ptr);
+	if (ptr_is_null(s->ptr_params_index)) {
+		return list_new(0);
+	}
+
+	unsigned int count_index_records = s->count_params;
+	index_struct *index_params =
+			index_init(s->ptr_params_index, count_index_records);
+
+	rbtree *the_tree = NULL;
+
+	unsigned int i;
+	for (i=0; i<count_index_records; ++i) {
+		uint32_t ptr_vk = index_params->ptr_blocks[i];
+		string_and_ptr val = {.str = vk_get_name(ptr_vk), .ptr = ptr_vk};
+		rbtree *node = sglib_rbtree_node_new(val);
+		rbtree *member = NULL;
+		int res = sglib_rbtree_add_if_not_member(&the_tree, node, &member);
+		assert(res != 0 && member == NULL);		// isn't params with duplicate names
+	}
+
+	string_and_ptr_list res = list_new(count_index_records);
+
+	unsigned int idx;
+	struct sglib_rbtree_iterator it;
+	rbtree *te;
+	for(
+			te=sglib_rbtree_it_init_inorder(&it,the_tree), idx = 0;
+			te!=NULL;
+			te=sglib_rbtree_it_next(&it), ++idx
+	) {
+		res.entries[idx] = te->val;
+	}
+	assert(idx == res.size);
+
+	sglib_rbtree_free(&the_tree);
+
+	return res;
+}
+
+/* ********************************** */
+
 void test1(uint32_t ptr) {
 	string_and_ptr_list list = nk_get_childs_list(ptr);
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
+	}
+	list_free(&list);
+}
+
+void test2(uint32_t ptr) {
+	string child_name;
+
+	child_name.str = "Software"; child_name.len = 8;
+	ptr = nk_find_child(ptr, child_name);
+	assert(ptr_not_null(ptr));
+
+	child_name.str = "Microsoft"; child_name.len = 9;
+	ptr = nk_find_child(ptr, child_name);
+	assert(ptr_not_null(ptr));
+
+	child_name.str = "Windows"; child_name.len = 7;
+	ptr = nk_find_child(ptr, child_name);
+	assert(ptr_not_null(ptr));
+
+	child_name.str = "CurrentVersion"; child_name.len = 14;
+	ptr = nk_find_child(ptr, child_name);
+	assert(ptr_not_null(ptr));
+
+	child_name.str = "Explorer"; child_name.len = 8;
+	ptr = nk_find_child(ptr, child_name);
+	assert(ptr_not_null(ptr));
+
+	//test1(ptr);
+
+	string_and_ptr_list list = nk_get_params_names_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
 		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
@@ -774,7 +886,7 @@ void test1(uint32_t ptr) {
 int main() {
 	uint32_t ptr_root = regfile_init("NTUSER.DAT");
 
-	test1(ptr_root);
+	test2(ptr_root);
 
 	regfile_uninit();
 	return 0;
