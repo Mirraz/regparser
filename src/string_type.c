@@ -56,6 +56,29 @@ int string_compare(string a, string b) {
 	return (res != 0 ? res : ((int)a.len - (int)b.len));
 }
 
+/* ********************************** */
+
+string_and_ptr_list list_new(unsigned int size) {
+	string_and_ptr_list res;
+	res.size = size;
+	res.entries = malloc(res.size * sizeof(res.entries[0]));
+	assert(res.entries != NULL);
+	return res;
+}
+
+void list_free(string_and_ptr_list *p_list) {
+	string_and_ptr_list list = *p_list;
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_free(list.entries[i].str);
+	}
+	free(list.entries);
+	p_list->entries = NULL;
+	p_list->size = 0;
+}
+
+/* ********************************** */
+
 /*
 #include <stdio.h>
 

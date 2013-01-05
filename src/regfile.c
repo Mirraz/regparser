@@ -739,19 +739,11 @@ int child_set_add(uint32_t ptr, void *data) {
 	return 0;
 }
 
-typedef struct {
-	string_and_ptr *list;
-	unsigned int size;
-} childs_list;
-
-childs_list nk_get_childs_list(uint32_t ptr) {
+string_and_ptr_list nk_get_childs_list(uint32_t ptr) {
 	rbtree *the_tree = NULL;
 	nk_childs_process(ptr, child_set_add, &the_tree);
 
-	childs_list res;
-	res.size = sglib_rbtree_len(the_tree);
-	res.list = malloc(res.size * sizeof(res.list[0]));
-	assert(res.list != NULL);
+	string_and_ptr_list res = list_new(sglib_rbtree_len(the_tree));
 
 	unsigned int idx;
 	struct sglib_rbtree_iterator it;
@@ -761,7 +753,7 @@ childs_list nk_get_childs_list(uint32_t ptr) {
 			te!=NULL;
 			te=sglib_rbtree_it_next(&it), ++idx
 	) {
-		res.list[idx] = te->val;
+		res.entries[idx] = te->val;
 	}
 	assert(idx == res.size);
 
@@ -771,13 +763,12 @@ childs_list nk_get_childs_list(uint32_t ptr) {
 }
 
 void test1(uint32_t ptr) {
-	childs_list list = nk_get_childs_list(ptr);
+	string_and_ptr_list list = nk_get_childs_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
-		string_print(list.list[i].str); printf(" %08X\n", list.list[i].ptr);
-		string_free(list.list[i].str);
+		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
 	}
-	free(list.list); list.size = 0;
+	list_free(&list);
 }
 
 int main() {
