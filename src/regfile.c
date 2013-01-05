@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 
 #include "string_type.h"
+#include "rbtree.h"
 #include "parse_common.h"
 #include "regfile_declare.h"
 #include "regfile.h"
@@ -728,10 +729,61 @@ int child_print_name(uint32_t ptr, void *data) {
 	return 0;
 }
 
+int child_set_add(uint32_t ptr, void *data) {
+	rbtree **p_the_tree = (rbtree **)data;
+	string_and_ptr val = {.str = nk_get_name(ptr), .ptr = ptr};
+	rbtree *node = sglib_rbtree_node_new(val);
+	rbtree *member = NULL;
+	int res = sglib_rbtree_add_if_not_member(p_the_tree, node, &member);
+	assert(res != 0 && member == NULL);		// isn't childs with duplicate names
+	return 0;
+}
+
+typedef struct {
+	string_and_ptr *list;
+	unsigned int size;
+} childs_list;
+
+childs_list nk_get_childs_list(uint32_t ptr) {
+	rbtree *the_tree = NULL;
+	nk_childs_process(ptr, child_set_add, &the_tree);
+
+	childs_list res;
+	res.size = sglib_rbtree_len(the_tree);
+	res.list = malloc(res.size * sizeof(res.list[0]));
+	assert(res.list != NULL);
+
+	unsigned int idx;
+	struct sglib_rbtree_iterator it;
+	rbtree *te;
+	for(
+			te=sglib_rbtree_it_init_inorder(&it,the_tree), idx = 0;
+			te!=NULL;
+			te=sglib_rbtree_it_next(&it), ++idx
+	) {
+		res.list[idx] = te->val;
+	}
+	assert(idx == res.size);
+
+	sglib_rbtree_free(&the_tree);
+
+	return res;
+}
+
+void test1(uint32_t ptr) {
+	childs_list list = nk_get_childs_list(ptr);
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_print(list.list[i].str); printf(" %08X\n", list.list[i].ptr);
+		string_free(list.list[i].str);
+	}
+	free(list.list); list.size = 0;
+}
+
 int main() {
 	uint32_t ptr_root = regfile_init("NTUSER.DAT");
 
-	nk_childs_process(ptr_root, child_print_name, NULL);
+	test1(ptr_root);
 
 	regfile_uninit();
 	return 0;

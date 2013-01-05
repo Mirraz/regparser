@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <iconv.h>
-#ifndef NDEBUG
-#include <stdio.h>
-#endif
 #include "string_type.h"
 
 void string_free(string str) {
@@ -48,8 +45,9 @@ err:
 }
 
 #ifndef NDEBUG
+#include <stdio.h>
 void string_print(string str) {
-	printf("%u[%.*s]\n", (unsigned int)str.len, (int)str.len, str.str);
+	printf("%u[%.*s]", (unsigned int)str.len, (int)str.len, str.str);
 }
 #endif
 
