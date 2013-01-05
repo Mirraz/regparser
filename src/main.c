@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <assert.h>
 
 #include <locale.h>
@@ -6,203 +7,159 @@
 
 #include "widgets.h"
 
+FILE *fout;
 FILE *flog;
 
 /* ****************** */
 
 struct {
-	WINDOW *win_keys;
-	WINDOW *win_params;
-	unsigned int main_width;
-	unsigned int main_height;
-	unsigned int win_keys_width;
-} wins;
+	struct {
+		WINDOW *pwd;
+		WINDOW *childs;
+		WINDOW *key_stats;
+		WINDOW *params;
+	} wins;
+	struct {
+		unsigned int main_width;
+		unsigned int main_height;
+	} geom;
+} widg_main;
 
-void widg_main_update() {
-	assert(wins.win_keys_width > 0);
-	assert(wins.win_keys_width < wins.main_width);
-	
-	wresize(
-		wins.win_keys,
-		wins.main_height - 2,
-		wins.win_keys_width - 2
-	);
-	wnoutrefresh(wins.win_keys);
-	
-	mvwin(wins.win_params, 1, wins.win_keys_width);
-	wresize(
-		wins.win_params,
-		wins.main_height - 2,
-		wins.main_width - wins.win_keys_width - 3
-	);
-	wnoutrefresh(wins.win_params);
-	
-	clear();
-	box(stdscr, 0, 0);
-	move(0, wins.win_keys_width-1);
-	addch(ACS_TTEE);
-	move(1, wins.win_keys_width-1);
-	vline(ACS_VLINE, wins.main_height-2);
-	move(wins.main_height-1, wins.win_keys_width-1);
-	addch(ACS_BTEE);
-	wnoutrefresh(stdscr);
-	
-	doupdate();
-}
-
-void widg_main_init() {
-	wins.win_keys = newwin(1, 1, 1, 1);
-	wins.win_params = newwin(1, 1, 1, 3);
-}
+scroll_struct widg_childs;
+scroll_struct widg_params;
 
 typedef enum {
-	WIDG_PANEL_KEYS,
-	WIDG_PANEL_PARAMS
-} current_widget_type;
+	WIDG_INVALID,
+	WIDG_CHILDS,
+	WIDG_PARAMS
+} widget_type;
 
-current_widget_type current_widget = -1;
+struct {
+	widget_type current_widget;
+	uint32_t ptr_nk_current;
+} state = {
+		.current_widget = WIDG_INVALID,
+		.ptr_nk_current = (uint32_t)(-1)
+};
+
+const unsigned int widg_stats_height = 5;
 
 /* ****************** */
 
-void widg_params_init();
-
-/**/
-char items[100][80];
-const char *items_list[100];
-/**/
-scroll_struct scroll_keys;
-
-void widg_keys_init() {
-	unsigned int i;
-	for (i=0; i<100; ++i) {
-		sprintf(items[i], "item%02u", i);
-		items_list[i] = (const char *)items[i];
-	}
-	
-	scroll_struct scroll_keys_ = {
-		.outer_box = wins.win_keys,
-		.outer_box_width = wins.win_keys_width - 2,
-		.outer_box_height = wins.main_height - 2,
-		.disp_item_idx_first = 0,
-		.disp_item_idx_selected = 0,
-		.items_list = items_list,
-		.items_count = 100
-	};
-	scroll_keys = scroll_keys_;
-	
-	scroll_update(&scroll_keys);
+void widg_main_init() {
+	widg_main.wins.pwd = newwin(1, 2, 1, 1);
+	widg_main.wins.childs = newwin(widg_stats_height + 2, 1, 3, 1);
+	widg_main.wins.key_stats = newwin(widg_stats_height, 1, 3, 3);
+	widg_main.wins.params = newwin(1, 1, widg_stats_height + 4, 3);
 }
 
-void widg_keys_ch(int ch) {
+void widg_main_update() {
+	if (widg_main.geom.main_width < 5) widg_main.geom.main_width = 5;
+	if (widg_main.geom.main_height < 7) widg_main.geom.main_height = 7;
+	unsigned int widg_childs_width = widg_main.geom.main_width / 3;   // main_width/2-1;
+	unsigned int widg_params_width = widg_main.geom.main_width - widg_childs_width - 3;
+
+	wresize(
+		widg_main.wins.pwd,
+		1,
+		widg_main.geom.main_width - 2
+	);
+	wnoutrefresh(widg_main.wins.pwd);
+
+	wresize(
+		widg_main.wins.childs,
+		widg_main.geom.main_height - 4,
+		widg_childs_width
+	);
+	wnoutrefresh(widg_main.wins.childs);
+
+	mvwin(widg_main.wins.key_stats, 3, widg_childs_width + 2);
+	wresize(
+		widg_main.wins.key_stats,
+		widg_stats_height,
+		widg_params_width
+	);
+	wnoutrefresh(widg_main.wins.key_stats);
+
+	mvwin(widg_main.wins.params, widg_stats_height + 4, widg_childs_width + 2);
+	wresize(
+		widg_main.wins.params,
+		widg_main.geom.main_height - widg_stats_height - 5,
+		widg_params_width
+	);
+	wnoutrefresh(widg_main.wins.params);
+
+	clear();
+	box(stdscr, 0, 0);
+
+	mvaddch(2, 0, ACS_LTEE);
+	mvhline(2, 1, ACS_HLINE, widg_main.geom.main_width - 2);
+	mvaddch(2, widg_main.geom.main_width - 1, ACS_RTEE);
+
+	mvaddch(2, widg_childs_width + 1, ACS_TTEE);
+	mvvline(3, widg_childs_width + 1, ACS_VLINE, widg_main.geom.main_height - 4);
+	mvaddch(widg_main.geom.main_height - 1, widg_childs_width + 1, ACS_BTEE);
+
+	mvaddch(widg_stats_height + 3, widg_childs_width + 1, ACS_LTEE);
+	mvhline(widg_stats_height + 3, widg_childs_width + 2, ACS_HLINE, widg_params_width);
+	mvaddch(widg_stats_height + 3, widg_main.geom.main_width - 1, ACS_RTEE);
+
+	curs_set(0);
+
+	wnoutrefresh(stdscr);
+
+	doupdate();
+
+}
+
+int widg_main_ch(int ch) {
+	//fprintf(flog, "[%u]\n", ch); fflush(flog);
 	switch (ch) {
-	case '\t':
-		widg_params_init();
-		current_widget = WIDG_PANEL_PARAMS;
+	case 'q':
+		return 1;
 		break;
 	case KEY_RESIZE:
-		scroll_keys.outer_box_width = wins.win_keys_width - 2;
-		scroll_keys.outer_box_height = wins.main_height - 2;
-		scroll_update(&scroll_keys);
-		break;
-	case KEY_ENTER:
-		// #####
-		break;
+		getmaxyx(stdscr, widg_main.geom.main_height, widg_main.geom.main_width);
+		widg_main_update();
 	default:
-		scroll_ch(&scroll_keys, ch);
+		switch (state.current_widget) {
+		case WIDG_CHILDS:
+			//widg_childs_ch(ch);
+			break;
+		case WIDG_PARAMS:
+			//widg_params_ch(ch);
+			break;
+		default:
+			//assert(0);
+			break;
+		}
 		break;
 	}
+	return 0;
 }
 
 /* ****************** */
 
-scroll_struct scroll_params;
+#include <unistd.h>
 
-void widg_params_init() {
-	scroll_struct scroll_params_ = {
-		.outer_box = wins.win_params,
-		.outer_box_width = wins.main_width - wins.win_keys_width - 3,
-		.outer_box_height = wins.main_height - 2,
-		.disp_item_idx_first = 0,
-		.disp_item_idx_selected = 0,
-		.items_list = items_list,
-		.items_count = 100
-	};
-	scroll_params = scroll_params_;
-	
-	scroll_update(&scroll_params);
-}
-
-void widg_params_clear() {
-	wclear(scroll_params.outer_box);
-	wrefresh(scroll_params.outer_box);
-}
-
-void widg_params_ch(int ch) {
-	switch (ch) {
-	case '\t':
-		widg_params_clear();
-		current_widget = WIDG_PANEL_KEYS;
-		break;
-	case KEY_RESIZE:
-		scroll_params.outer_box_width = wins.main_width - wins.win_keys_width - 3;
-		scroll_params.outer_box_height = wins.main_height - 2;
-		scroll_update(&scroll_params);
-		break;
-	case KEY_ENTER:
-		// #####
-		break;
-	default:
-		scroll_ch(&scroll_params, ch);
-		break;
-	}
-}
-
-/* ****************** */
-
-int main() { // int argc, char **argv) {
+int main() {   // int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
 	setlocale(LC_CTYPE, "");
-	
+
 	initscr();
 	cbreak();
 	noecho();
-	keypad(stdscr, TRUE);
 
 	widg_main_init();
-	
-	getmaxyx(stdscr, wins.main_height, wins.main_width);
-	wins.win_keys_width = wins.main_width / 2 + 1;
-	widg_main_update();
-	
-	widg_keys_init();
-	current_widget = WIDG_PANEL_KEYS;
+
+	widg_main_ch(KEY_RESIZE);
 
 	int ch;
 	do {
 		ch = getch();
-		//fprintf(flog, "[%u]\n", ch); fflush(flog);
-		switch (ch) {
-		case KEY_RESIZE:
-			getmaxyx(stdscr, wins.main_height, wins.main_width);
-			wins.win_keys_width = wins.main_width / 2 + 1;
-			widg_main_update();
-		default:
-			switch (current_widget) {
-			case WIDG_PANEL_KEYS:
-				widg_keys_ch(ch);
-				break;
-			case WIDG_PANEL_PARAMS:
-				widg_params_ch(ch);
-				break;
-			default:
-				assert(0);
-				break;
-			}
-			break;
-		}
-	} while (ch != 'q');
-	
+	} while (!widg_main_ch(ch));
+
 	endwin();
 	
 fclose(flog);
