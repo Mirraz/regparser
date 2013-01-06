@@ -736,7 +736,7 @@ int child_set_add(uint32_t ptr, void *data) {
 	return 0;
 }
 
-string_and_ptr_list list_new(unsigned int size) {
+string_and_ptr_list string_and_ptr_list_new(unsigned int size) {
 	string_and_ptr_list res;
 	res.size = size;
 	if (size != 0) {
@@ -748,7 +748,7 @@ string_and_ptr_list list_new(unsigned int size) {
 	return res;
 }
 
-void list_free(string_and_ptr_list *p_list) {
+void string_and_ptr_list_free(string_and_ptr_list *p_list) {
 	string_and_ptr_list list = *p_list;
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
@@ -763,7 +763,7 @@ string_and_ptr_list nk_get_childs_list(uint32_t ptr) {
 	rbtree *the_tree = NULL;
 	nk_childs_process(ptr, child_set_add, &the_tree);
 
-	string_and_ptr_list res = list_new(sglib_rbtree_len(the_tree));
+	string_and_ptr_list res = string_and_ptr_list_new(sglib_rbtree_len(the_tree));
 
 	unsigned int idx;
 	struct sglib_rbtree_iterator it;
@@ -820,14 +820,14 @@ string vk_get_name(uint32_t ptr) {
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	nk_struct *s = nk_init(ptr);
 	if (ptr_is_null(s->ptr_params_index)) {
-		return list_new(0);
+		return string_and_ptr_list_new(0);
 	}
 
 	unsigned int count_index_records = s->count_params;
 	index_struct *index_params =
 			index_init(s->ptr_params_index, count_index_records);
 
-	string_and_ptr_list list = list_new(count_index_records);
+	string_and_ptr_list list = string_and_ptr_list_new(count_index_records);
 	unsigned int i;
 	for (i=0; i<count_index_records; ++i) {
 		uint32_t ptr_vk = index_params->ptr_blocks[i];

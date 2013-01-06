@@ -8,7 +8,7 @@ void test1(uint32_t ptr) {
 	for (i=0; i<list.size; ++i) {
 		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
 	}
-	list_free(&list);
+	string_and_ptr_list_free(&list);
 }
 
 void test2(uint32_t ptr) {
@@ -41,7 +41,7 @@ void test2(uint32_t ptr) {
 	for (i=0; i<list.size; ++i) {
 		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
 	}
-	list_free(&list);
+	string_and_ptr_list_free(&list);
 }
 
 int main() {

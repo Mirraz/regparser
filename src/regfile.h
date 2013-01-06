@@ -21,7 +21,7 @@ typedef struct {
 	unsigned int size;
 } string_and_ptr_list;
 
-void list_free(string_and_ptr_list *p_list);
+void string_and_ptr_list_free(string_and_ptr_list *p_list);
 
 string_and_ptr_list nk_get_childs_list(uint32_t ptr);
 uint32_t nk_find_child(uint32_t ptr, string name);
