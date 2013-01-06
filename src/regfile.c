@@ -827,33 +827,21 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	index_struct *index_params =
 			index_init(s->ptr_params_index, count_index_records);
 
-	rbtree *the_tree = NULL;
-
+	string_and_ptr_list list = list_new(count_index_records);
 	unsigned int i;
 	for (i=0; i<count_index_records; ++i) {
 		uint32_t ptr_vk = index_params->ptr_blocks[i];
 		string_and_ptr val = {.str = vk_get_name(ptr_vk), .ptr = ptr_vk};
-		rbtree *node = sglib_rbtree_node_new(val);
-		rbtree *member = NULL;
-		int res = sglib_rbtree_add_if_not_member(&the_tree, node, &member);
-		assert(res != 0 && member == NULL);		// isn't params with duplicate names
+		list.entries[i] = val;
 	}
 
-	string_and_ptr_list res = list_new(count_index_records);
+#define string_and_ptr_cmp(a, b) string_compare(a.str, b.str)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+	SGLIB_ARRAY_SINGLE_HEAP_SORT(string_and_ptr, list.entries, list.size, string_and_ptr_cmp)
+#pragma GCC diagnostic pop
+#undef string_and_ptr_cmp
 
-	unsigned int idx;
-	struct sglib_rbtree_iterator it;
-	rbtree *te;
-	for(
-			te=sglib_rbtree_it_init_inorder(&it,the_tree), idx = 0;
-			te!=NULL;
-			te=sglib_rbtree_it_next(&it), ++idx
-	) {
-		res.entries[idx] = te->val;
-	}
-	assert(idx == res.size);
-
-	sglib_rbtree_free(&the_tree);
-
-	return res;
+	return list;
 }

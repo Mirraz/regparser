@@ -6,7 +6,11 @@
 
 #define rbtree_node_cmp(a,b) string_compare(a->val.str, b->val.str)
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-variable"
 SGLIB_DEFINE_RBTREE_FUNCTIONS(rbtree, left, right, color_field, rbtree_node_cmp);
+#pragma GCC diagnostic pop
 
 rbtree *sglib_rbtree_node_new(string_and_ptr val) {
 	rbtree *t = malloc(sizeof(rbtree));

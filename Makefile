@@ -28,7 +28,7 @@ $(BUILD_DIR)/regfile.o: $(SRC_DIR)/regfile.c $(SRC_DIR)/regfile.h $(SRC_DIR)/reg
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 $(BUILD_DIR)/rbtree.o: $(SRC_DIR)/rbtree.c $(SRC_DIR)/rbtree.h $(SRC_DIR)/sglib.h $(SRC_DIR)/regfile.h $(SRC_DIR)/string_type.h Makefile
-	$(CC) -o $@ $< -c $(COPTIM) $(DEFINES) $(INCLUDES)
+	$(CC) -o $@ $< -c $(CFLAGS)
 
 $(BUILD_DIR)/string_type.o: $(SRC_DIR)/string_type.c $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)

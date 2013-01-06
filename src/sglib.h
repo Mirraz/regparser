@@ -1761,13 +1761,14 @@ int sglib_##type##_add_if_not_member(type **tree, type *elem, type **memb) {\
 }\
 int sglib_##type##_len(type *t) {\
     int   n;\
+    type  *e;\
     n = 0;\
     SGLIB_BIN_TREE_MAP_ON_ELEMENTS(type, t, e, left, right, n++);\
     return(n);\
 }\
 \
 void sglib__##type##_it_compute_current_elem(struct sglib_##type##_iterator *it) {\
-    int   i,j;\
+    int   i,j,cmp;\
     type  *s, *eqt;\
     int   (*subcomparator)(type *, type *);\
     eqt = it->equalto;\
