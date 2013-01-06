@@ -2,25 +2,29 @@
 #define REGFILE_H_
 
 #include <stdint.h>
+#include "string_type.h"
 
-#include "regfile_declare.h"
+#define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
+#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
+#define ptr_null ((uint32_t)-1)
 
-void structs_check_size();
-regf_struct *regf_init(regf_struct *s);
-void set_data(uint8_t *data_);
+uint32_t regfile_init(const char *regfile_path);
+int regfile_uninit();
 
-hbin_struct *hbin_init(uint32_t ptr);
+typedef struct {
+	string str;
+	uint32_t ptr;
+} string_and_ptr;
 
-nk_struct *nk_init(uint32_t ptr);
-void nk_print_name(nk_struct *s);
-void nk_print_class(nk_struct *s);
-void nk_print_sk(nk_struct *s);
-void vk_print_name(vk_struct *s);
-void nk_ls_params(nk_struct *s);
-void nk_ls_childs(nk_struct *s);
-void nk_print_pwd(nk_struct *s);
-void nk_print_verbose(nk_struct *s);
-void nk_recur(nk_struct *s);
-nk_struct *nk_cd(nk_struct *s, const char *path);
+typedef struct {
+	string_and_ptr *entries;
+	unsigned int size;
+} string_and_ptr_list;
+
+void list_free(string_and_ptr_list *p_list);
+
+string_and_ptr_list nk_get_childs_list(uint32_t ptr);
+uint32_t nk_find_child(uint32_t ptr, string name);
+string_and_ptr_list nk_get_params_names_list(uint32_t ptr);
 
 #endif /* REGFILE_H_ */

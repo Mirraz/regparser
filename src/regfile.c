@@ -19,10 +19,6 @@
 
 /* ********************************** */
 
-#define ptr_is_null(ptr) ((ptr) == (uint32_t)-1)
-#define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
-#define ptr_null ((uint32_t)-1)
-
 #define check_signatire(PREFIX) (s->signature == PREFIX##_signature)
 #define check_block_ptr() (ptr_not_null(ptr) && ptr < header_data.size_data_area)
 #define check_ptr(ptr) (ptr_is_null(ptr) || ptr < header_data.size_data_area)
@@ -683,7 +679,6 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 		lf_struct *lf = lf_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<lf->count_records; ++i) {
-			nk_struct *nk = nk_init(lf->records[i].ptr_nk);
 			if (callback(lf->records[i].ptr_nk, callback_data)) return;
 		}
 		break;
@@ -724,6 +719,7 @@ void nk_childs_process(uint32_t ptr,
 }
 
 int child_print_name(uint32_t ptr, void *data) {
+	(void)data;
 	string name = nk_get_name(ptr);
 	string_print(name);
 	string_free(name);
@@ -738,6 +734,29 @@ int child_set_add(uint32_t ptr, void *data) {
 	int res = sglib_rbtree_add_if_not_member(p_the_tree, node, &member);
 	assert(res != 0 && member == NULL);		// isn't childs with duplicate names
 	return 0;
+}
+
+string_and_ptr_list list_new(unsigned int size) {
+	string_and_ptr_list res;
+	res.size = size;
+	if (size != 0) {
+		res.entries = malloc(res.size * sizeof(res.entries[0]));
+		assert(res.entries != NULL);
+	} else {
+		res.entries = NULL;
+	}
+	return res;
+}
+
+void list_free(string_and_ptr_list *p_list) {
+	string_and_ptr_list list = *p_list;
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_free(list.entries[i].str);
+	}
+	free(list.entries);
+	p_list->entries = NULL;
+	p_list->size = 0;
 }
 
 string_and_ptr_list nk_get_childs_list(uint32_t ptr) {
@@ -837,57 +856,4 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	sglib_rbtree_free(&the_tree);
 
 	return res;
-}
-
-/* ********************************** */
-
-void test1(uint32_t ptr) {
-	string_and_ptr_list list = nk_get_childs_list(ptr);
-	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
-	}
-	list_free(&list);
-}
-
-void test2(uint32_t ptr) {
-	string child_name;
-
-	child_name.str = "Software"; child_name.len = 8;
-	ptr = nk_find_child(ptr, child_name);
-	assert(ptr_not_null(ptr));
-
-	child_name.str = "Microsoft"; child_name.len = 9;
-	ptr = nk_find_child(ptr, child_name);
-	assert(ptr_not_null(ptr));
-
-	child_name.str = "Windows"; child_name.len = 7;
-	ptr = nk_find_child(ptr, child_name);
-	assert(ptr_not_null(ptr));
-
-	child_name.str = "CurrentVersion"; child_name.len = 14;
-	ptr = nk_find_child(ptr, child_name);
-	assert(ptr_not_null(ptr));
-
-	child_name.str = "Explorer"; child_name.len = 8;
-	ptr = nk_find_child(ptr, child_name);
-	assert(ptr_not_null(ptr));
-
-	//test1(ptr);
-
-	string_and_ptr_list list = nk_get_params_names_list(ptr);
-	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
-	}
-	list_free(&list);
-}
-
-int main() {
-	uint32_t ptr_root = regfile_init("NTUSER.DAT");
-
-	test2(ptr_root);
-
-	regfile_uninit();
-	return 0;
 }

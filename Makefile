@@ -10,7 +10,7 @@ LIBFILES=-lncursesw
 LDFLAGS=$(WARNINGS) $(LDOPTIM) $(LIBFILES)
 SRC_DIR=src
 BUILD_DIR=build
-EXECUTABLE=regparser
+EXECUTABLE=regfile_test
 
 
 all: $(BUILD_DIR) $(EXECUTABLE)
@@ -18,22 +18,19 @@ all: $(BUILD_DIR) $(EXECUTABLE)
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/security_descriptor.o $(BUILD_DIR)/codepages.o
+$(EXECUTABLE): $(BUILD_DIR)/regfile_test.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/rbtree.o $(BUILD_DIR)/string_type.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/parse_common.h $(SRC_DIR)/regfile.h $(SRC_DIR)/regfile_declare.h Makefile
+$(BUILD_DIR)/regfile_test.o: $(SRC_DIR)/regfile_test.c $(SRC_DIR)/regfile.h $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
-$(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h Makefile
+$(BUILD_DIR)/regfile.o: $(SRC_DIR)/regfile.c $(SRC_DIR)/regfile.h $(SRC_DIR)/regfile_declare.h $(SRC_DIR)/parse_common.h $(SRC_DIR)/rbtree.h $(SRC_DIR)/sglib.h $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
-$(BUILD_DIR)/regfile.o: $(SRC_DIR)/regfile.c $(SRC_DIR)/parse_common.h $(SRC_DIR)/codepages.h $(SRC_DIR)/security_descriptor.h $(SRC_DIR)/regfile_declare.h $(SRC_DIR)/regfile.h Makefile
-	$(CC) -o $@ $< -c $(CFLAGS)
+$(BUILD_DIR)/rbtree.o: $(SRC_DIR)/rbtree.c $(SRC_DIR)/rbtree.h $(SRC_DIR)/sglib.h $(SRC_DIR)/regfile.h $(SRC_DIR)/string_type.h Makefile
+	$(CC) -o $@ $< -c $(COPTIM) $(DEFINES) $(INCLUDES)
 
-$(BUILD_DIR)/security_descriptor.o: $(SRC_DIR)/security_descriptor.c $(SRC_DIR)/parse_common.h $(SRC_DIR)/security_descriptor_declare.h $(SRC_DIR)/security_descriptor.h Makefile
-	$(CC) -o $@ $< -c $(CFLAGS)
-
-$(BUILD_DIR)/codepages.o: $(SRC_DIR)/codepages.c $(SRC_DIR)/codepages.h Makefile
+$(BUILD_DIR)/string_type.o: $(SRC_DIR)/string_type.c $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 clean:

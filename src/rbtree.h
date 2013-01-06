@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "string_type.h"
+#include "regfile.h"
 #include "sglib.h"
 
 typedef struct rbtree_ rbtree;

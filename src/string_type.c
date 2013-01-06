@@ -8,7 +8,7 @@ void string_free(string str) {
 	free((char *)str.str);
 }
 
-string string_new_from_ansi(const char *in, unsigned int in_size) {
+string string_new_from_ansi(const unsigned char *in, size_t in_size) {
 	char *res_str = malloc(in_size);
 	memcpy(res_str, in, in_size);
 	string res = {.str = (const char *)res_str, .len = in_size};
@@ -17,6 +17,8 @@ string string_new_from_ansi(const char *in, unsigned int in_size) {
 
 string string_new_from_unicode(const unsigned char *in, size_t in_size) {
 	char *res_str = NULL;
+	size_t res_size = 0;
+
 	iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
 	if (cd == (iconv_t)(-1)) goto err;
 
@@ -27,8 +29,8 @@ string string_new_from_unicode(const unsigned char *in, size_t in_size) {
 	size_t out_size = buf_size;
 	char *out = buf;
 	size_t r = iconv(cd, (char **)&in, &in_size, &out, &out_size);
-	if (r < 0 || in_size != 0) goto err3;
-	size_t res_size = buf_size - out_size;
+	if (r == (size_t)-1 || in_size != 0) goto err3;
+	res_size = buf_size - out_size;
 
 	res_str = malloc(res_size);
 	if (res_str == NULL) goto err3;
@@ -55,33 +57,6 @@ int string_compare(string a, string b) {
 	int res = strncmp(a.str, b.str, (a.len < b.len ? a.len : b.len));
 	return (res != 0 ? res : ((int)a.len - (int)b.len));
 }
-
-/* ********************************** */
-
-string_and_ptr_list list_new(unsigned int size) {
-	string_and_ptr_list res;
-	res.size = size;
-	if (size != 0) {
-		res.entries = malloc(res.size * sizeof(res.entries[0]));
-		assert(res.entries != NULL);
-	} else {
-		res.entries = NULL;
-	}
-	return res;
-}
-
-void list_free(string_and_ptr_list *p_list) {
-	string_and_ptr_list list = *p_list;
-	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_free(list.entries[i].str);
-	}
-	free(list.entries);
-	p_list->entries = NULL;
-	p_list->size = 0;
-}
-
-/* ********************************** */
 
 /*
 #include <stdio.h>
