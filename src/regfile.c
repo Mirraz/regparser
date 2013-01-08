@@ -32,6 +32,8 @@ static regf_struct header_data;
 regf_struct *header = &header_data;
 uint8_t *data = NULL;
 
+unsigned int vk_value_brief_max_len = 128;
+
 /* ********************************** */
 
 void structs_check_size();
@@ -817,6 +819,27 @@ string vk_get_name(uint32_t ptr) {
 	}
 }
 
+string vk_get_type(uint32_t ptr) {
+	vk_struct *vk = vk_init(ptr);
+	unsigned int j;
+	for (j=0; j<param_types_count && param_type_desc[j].type != vk->param_type; ++j);
+	string res;
+	res.len = strlen(param_type_desc[j].name);
+	if (j < param_types_count) {
+		res.str = strndup(param_type_desc[j].name, res.len);
+	} else {
+		char str_unknown[] = " (0x00000000)";
+		const unsigned int str_unknown_size = 13;
+		res.str = malloc(res.len + str_unknown_size);
+		strncpy((char *)res.str, param_type_desc[j].name, res.len);
+		snprintf(str_unknown+4, 9, "%08X", vk->param_type);
+		str_unknown[str_unknown_size-1] = ')';
+		strncpy((char *)res.str+res.len, str_unknown, str_unknown_size);
+		res.len += str_unknown_size;
+	}
+	return res;
+}
+
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	nk_struct *s = nk_init(ptr);
 	if (ptr_is_null(s->ptr_params_index)) {
@@ -826,8 +849,8 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	unsigned int count_index_records = s->count_params;
 	index_struct *index_params =
 			index_init(s->ptr_params_index, count_index_records);
-
 	string_and_ptr_list list = string_and_ptr_list_new(count_index_records);
+
 	unsigned int i;
 	for (i=0; i<count_index_records; ++i) {
 		uint32_t ptr_vk = index_params->ptr_blocks[i];
@@ -842,6 +865,58 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	SGLIB_ARRAY_SINGLE_HEAP_SORT(string_and_ptr, list.entries, list.size, string_and_ptr_cmp)
 #pragma GCC diagnostic pop
 #undef string_and_ptr_cmp
+
+	return list;
+}
+
+void params_parsed_list_free(params_parsed_list *p_list) {
+	params_parsed_list list = *p_list;
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_free(list.entries[i].name);
+		string_free(list.entries[i].type);
+		string_free(list.entries[i].value_brief);
+	}
+	free(list.entries);
+	p_list->entries = NULL;
+	p_list->size = 0;
+}
+
+params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
+	nk_struct *s = nk_init(ptr);
+	if (ptr_is_null(s->ptr_params_index)) {
+		params_parsed_list list = {.entries = NULL, .size = 0};
+		return list;
+	}
+
+	unsigned int count_index_records = s->count_params;
+	index_struct *index_params =
+			index_init(s->ptr_params_index, count_index_records);
+	params_parsed_list list = {.size = count_index_records};
+	list.entries = malloc(list.size * sizeof(list.entries[0]));
+	assert(list.entries != NULL);
+
+	unsigned int i;
+	for (i=0; i<count_index_records; ++i) {
+		uint32_t ptr_vk = index_params->ptr_blocks[i];
+		param_parsed val;
+		val.name = vk_get_name(ptr_vk);
+		val.type = vk_get_type(ptr_vk);
+		vk_struct *vk = vk_init(ptr_vk);
+		val.size_value = vk->size_param_value & ~0x80000000;
+val.value_brief.len = 0;
+val.value_brief.str = NULL;
+		val.ptr = ptr_vk;
+		list.entries[i] = val;
+	}
+
+#define param_parsed_cmp(a, b) string_compare(a.name, b.name)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+	SGLIB_ARRAY_SINGLE_HEAP_SORT(param_parsed, list.entries, list.size, param_parsed_cmp)
+#pragma GCC diagnostic pop
+#undef param_parsed_cmp
 
 	return list;
 }
