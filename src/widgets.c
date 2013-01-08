@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "widgets.h"
+#include "common.h"
 #include "debug.h"
 
 inline static void scroll_check_data(scroll_struct *scroll) {
@@ -15,8 +16,8 @@ void scroll_update(scroll_struct *scroll) {
 	scroll_check_data(scroll);
 	wclear(scroll->outer_box);
 	unsigned int idx;
-	unsigned int idx_last = scroll->disp_item_idx_first + scroll->outer_box_height;
-	if (idx_last > scroll->list.size) idx_last = scroll->list.size;
+	unsigned int idx_last =
+			MIN(scroll->disp_item_idx_first + scroll->outer_box_height, scroll->list.size);
 	for (
 		idx=scroll->disp_item_idx_first;
 		idx < idx_last;
@@ -25,11 +26,7 @@ void scroll_update(scroll_struct *scroll) {
 		if (scroll->disp_show_select && idx == scroll->disp_item_idx_selected)
 			wattron(scroll->outer_box, A_REVERSE);
 		wmove(scroll->outer_box, idx-scroll->disp_item_idx_first, 0);
-		unsigned int print_width = (
-				scroll->outer_box_width < scroll->list.entries[idx].len ?
-				scroll->outer_box_width :
-				scroll->list.entries[idx].len
-		);
+		unsigned int print_width = MIN(scroll->outer_box_width, scroll->list.entries[idx].len);
 		wprintw(scroll->outer_box, "%.*s", print_width, scroll->list.entries[idx].str);
 		if (scroll->disp_show_select && idx == scroll->disp_item_idx_selected)
 			wattroff(scroll->outer_box, A_REVERSE);

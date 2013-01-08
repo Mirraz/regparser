@@ -21,10 +21,10 @@ $(BUILD_DIR):
 $(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/rbtree.o $(BUILD_DIR)/string_type.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/regfile.h $(SRC_DIR)/string_type.h Makefile
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/regfile.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
-$(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h $(SRC_DIR)/string_type.h Makefile
+$(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 $(BUILD_DIR)/regfile.o: $(SRC_DIR)/regfile.c $(SRC_DIR)/regfile.h $(SRC_DIR)/regfile_declare.h $(SRC_DIR)/parse_common.h $(SRC_DIR)/rbtree.h $(SRC_DIR)/sglib.h $(SRC_DIR)/string_type.h Makefile

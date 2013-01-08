@@ -12,11 +12,10 @@
 #include "regfile.h"
 #include "parse_common.h"
 #include "string_type.h"
+#include "common.h"
 #include "debug.h"
 
 FILE *flog;
-
-#define MIN(a, b) ( (a) < (b) ? (a) : (b))
 
 /* ****************** */
 
