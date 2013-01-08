@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <memory.h>
 #include <assert.h>
 
 #include <locale.h>
@@ -14,6 +15,8 @@
 #include "debug.h"
 
 FILE *flog;
+
+#define MIN(a, b) ( (a) < (b) ? (a) : (b))
 
 /* ****************** */
 
@@ -53,6 +56,17 @@ typedef struct {
 
 widg_list_type widg_childs = widg_list_init_value;
 widg_list_type widg_params = widg_list_init_value;
+struct {
+	unsigned int total_max;
+	unsigned int name;
+	unsigned int type;
+	unsigned int size_value;
+} widg_params_widths = {
+	.total_max = 128,
+	.name = 30,
+	.type = 12,
+	.size_value = 10
+};
 
 #define KEY_NK_CHANGE (KEY_MAX+1)
 
@@ -212,8 +226,10 @@ void widg_childs_init() {
 	unsigned int items_count = list.size;
 	if (ptr_not_null(ptr_parent)) ++items_count; // for ".."
 	scroll.list.entries = malloc(items_count * sizeof(string));
+	assert(scroll.list.entries != NULL);
 	scroll.list.size = items_count;
 	widg_childs.ptr_list.entries = malloc(items_count * sizeof(uint32_t));
+	assert(widg_childs.ptr_list.entries != NULL);
 	widg_childs.ptr_list.size = items_count;
 
 	unsigned int add_if_parent = 0;
@@ -267,6 +283,69 @@ void widg_childs_ch(int ch) {
 
 /* ****************** */
 
+string widg_param_parsed_to_table_row(param_parsed val) {
+	unsigned int width_first =
+			widg_params_widths.name + 1 +
+			widg_params_widths.type + 1 +
+			widg_params_widths.size_value + 1;
+	assert(widg_params_widths.total_max >= width_first);
+
+	char *res_str = malloc(widg_params_widths.total_max);
+	assert(res_str != NULL);
+	char *cur = res_str;
+	unsigned int cpy_count;
+
+	cpy_count = MIN(val.name.len, widg_params_widths.name);
+	memcpy(cur, val.name.str, cpy_count);
+	if (cpy_count < widg_params_widths.name)
+		memset(cur+cpy_count, ' ', widg_params_widths.name - cpy_count);
+	cur += widg_params_widths.name;
+	*cur++ = '|';
+
+	cpy_count = MIN(val.type.len, widg_params_widths.type);
+	memcpy(cur, val.type.str, cpy_count);
+	if (cpy_count < widg_params_widths.type)
+		memset(cur+cpy_count, ' ', widg_params_widths.type - cpy_count);
+	cur += widg_params_widths.type;
+	*cur++ = '|';
+
+#define uint32_t_max_width 10
+	char buf[uint32_t_max_width+1];
+	sprintf(buf, "%*u", uint32_t_max_width, val.size_value);
+	memcpy(cur, buf+uint32_t_max_width-widg_params_widths.size_value,
+			widg_params_widths.size_value);
+	cur += widg_params_widths.size_value;
+	*cur++ = '|';
+#undef uint32_t_max_width
+
+	//assert(cur - res_str == width_first);
+	unsigned int rest = widg_params_widths.total_max - width_first;
+
+	cpy_count = MIN(val.value_brief.len, rest);
+	memcpy(cur, val.value_brief.str, cpy_count);
+
+	string res;
+	res.len = width_first + cpy_count;
+	res.str = malloc(res.len);
+	assert(res.str != NULL);
+	memcpy((char *)res.str, res_str, res.len);
+	free(res_str);
+	return res;
+}
+
+/*void widg_param_parsed_to_table_row_test() {
+	param_parsed val = {
+		.name = {.str = "name", .len = 4},
+		.type = {.str = "type", .len = 4},
+		.size_value = 16,
+		.value_brief = {.str = "value", .len = 5},
+		.ptr = -1
+	};
+	string res = widg_param_parsed_to_table_row(val);
+	string_print(res);
+}
+*/
+
 void widg_params_init() {
 	widg_list_free(&widg_params);
 
@@ -284,20 +363,22 @@ void widg_params_init() {
 	params_parsed_list list = nk_get_params_parsed_list(state.ptr_nk_current);
 
 	scroll.list.entries = malloc(list.size * sizeof(string));
+	assert(scroll.list.entries != NULL);
 	scroll.list.size = list.size;
 	widg_params.ptr_list.entries = malloc(list.size * sizeof(uint32_t));
+	assert(widg_params.ptr_list.entries != NULL);
 	widg_params.ptr_list.size = list.size;
 
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
-		scroll.list.entries[i] = list.entries[i].name;
+		scroll.list.entries[i] = widg_param_parsed_to_table_row(list.entries[i]);
 		widg_params.ptr_list.entries[i] = list.entries[i].ptr;
 	}
-	//params_parsed_list_free(&list);
-free(list.entries);
+	params_parsed_list_free(&list);
 
 	widg_params.scroll = scroll;
 	scroll_update(&widg_params.scroll);
+
 }
 
 void widg_params_ch(int ch) {
@@ -351,4 +432,3 @@ flog = fopen("/tmp/debug.log", "w");
 fclose(flog);
 	return 0;
 }
-
