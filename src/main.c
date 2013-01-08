@@ -203,7 +203,8 @@ void widg_childs_init() {
 		.outer_box_width = width,
 		.outer_box_height = height,
 		.disp_item_idx_first = 0,
-		.disp_item_idx_selected = 0
+		.disp_item_idx_selected = 0,
+		.disp_show_select = (state.current_widget == WIDG_CHILDS)
 	};
 
 	string_and_ptr_list list = nk_get_childs_list(state.ptr_nk_current);
@@ -250,14 +251,73 @@ void widg_childs_ch(int ch) {
 	case KEY_NK_CHANGE:
 		widg_childs_init();
 		break;
+	case '\t':
+		state.current_widget = WIDG_PARAMS;
+		widg_childs.scroll.disp_show_select = 0;
+		widg_params.scroll.disp_show_select = 1;
+		scroll_update(&widg_childs.scroll);
+		scroll_update(&widg_params.scroll);
+		break;
 	default:
 		scroll_ch(&widg_childs.scroll, ch);
 		break;
 	}
 }
 
+
+/* ****************** */
+
+void widg_params_init() {
+	widg_list_free(&widg_params);
+
+	int height, width;
+	getmaxyx(widg_main.wins.params, height, width);
+	scroll_struct scroll = {
+		.outer_box = widg_main.wins.params,
+		.outer_box_width = width,
+		.outer_box_height = height,
+		.disp_item_idx_first = 0,
+		.disp_item_idx_selected = 0,
+		.disp_show_select = (state.current_widget == WIDG_PARAMS)
+	};
+
+	params_parsed_list list = nk_get_params_parsed_list(state.ptr_nk_current);
+
+	scroll.list.entries = malloc(list.size * sizeof(string));
+	scroll.list.size = list.size;
+	widg_params.ptr_list.entries = malloc(list.size * sizeof(uint32_t));
+	widg_params.ptr_list.size = list.size;
+
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		scroll.list.entries[i] = list.entries[i].name;
+		widg_params.ptr_list.entries[i] = list.entries[i].ptr;
+	}
+	//params_parsed_list_free(&list);
+free(list.entries);
+
+	widg_params.scroll = scroll;
+	scroll_update(&widg_params.scroll);
+}
+
 void widg_params_ch(int ch) {
-	(void) ch;
+	switch(ch) {
+	case '\n':
+		break;
+	case KEY_NK_CHANGE:
+		widg_params_init();
+		break;
+	case '\t':
+		state.current_widget = WIDG_CHILDS;
+		widg_childs.scroll.disp_show_select = 1;
+		widg_params.scroll.disp_show_select = 0;
+		scroll_update(&widg_childs.scroll);
+		scroll_update(&widg_params.scroll);
+		break;
+	default:
+		scroll_ch(&widg_params.scroll, ch);
+		break;
+	}
 }
 
 /* ****************** */

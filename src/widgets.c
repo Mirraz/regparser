@@ -22,7 +22,8 @@ void scroll_update(scroll_struct *scroll) {
 		idx < idx_last;
 		++idx
 	) {
-		if (idx == scroll->disp_item_idx_selected) wattron(scroll->outer_box, A_REVERSE);
+		if (scroll->disp_show_select && idx == scroll->disp_item_idx_selected)
+			wattron(scroll->outer_box, A_REVERSE);
 		wmove(scroll->outer_box, idx-scroll->disp_item_idx_first, 0);
 		unsigned int print_width = (
 				scroll->outer_box_width < scroll->list.entries[idx].len ?
@@ -30,7 +31,8 @@ void scroll_update(scroll_struct *scroll) {
 				scroll->list.entries[idx].len
 		);
 		wprintw(scroll->outer_box, "%.*s", print_width, scroll->list.entries[idx].str);
-		if (idx == scroll->disp_item_idx_selected) wattroff(scroll->outer_box, A_REVERSE);
+		if (scroll->disp_show_select && idx == scroll->disp_item_idx_selected)
+			wattroff(scroll->outer_box, A_REVERSE);
 	}
 	curs_set(0);
 	wrefresh(scroll->outer_box);

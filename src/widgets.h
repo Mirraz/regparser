@@ -15,6 +15,7 @@ typedef struct {
 	unsigned int outer_box_height;
 	unsigned int disp_item_idx_first;
 	unsigned int disp_item_idx_selected;
+	unsigned int disp_show_select;
 	string_list_type list;
 } scroll_struct;
 
