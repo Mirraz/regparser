@@ -54,6 +54,8 @@ typedef struct {
 widg_list_type widg_childs = widg_list_init_value;
 widg_list_type widg_params = widg_list_init_value;
 
+#define KEY_NK_CHANGE (KEY_MAX+1)
+
 typedef enum {
 	WIDG_INVALID,
 	WIDG_CHILDS,
@@ -149,6 +151,13 @@ int widg_main_ch(int ch) {
 	case KEY_RESIZE:
 		getmaxyx(stdscr, widg_main.geom.main_height, widg_main.geom.main_width);
 		widg_main_update();
+		widg_childs_ch(ch);
+		widg_params_ch(ch);
+		break;
+	case KEY_NK_CHANGE:
+		widg_childs_ch(ch);
+		widg_params_ch(ch);
+		break;
 	default:
 		switch (state.current_widget) {
 		case WIDG_CHILDS:
@@ -226,13 +235,19 @@ void widg_childs_init() {
 
 }
 
+void widg_childs_select() {
+	unsigned int idx = widg_childs.scroll.disp_item_idx_selected;
+	assert(idx < widg_childs.ptr_list.size);
+	state.ptr_nk_current = widg_childs.ptr_list.entries[idx];
+}
+
 void widg_childs_ch(int ch) {
 	switch(ch) {
 	case '\n':
-		;
-		unsigned int idx = widg_childs.scroll.disp_item_idx_selected;
-		assert(idx < widg_childs.ptr_list.size);
-		state.ptr_nk_current = widg_childs.ptr_list.entries[idx];
+		widg_childs_select();
+		widg_main_ch(KEY_NK_CHANGE);
+		break;
+	case KEY_NK_CHANGE:
 		widg_childs_init();
 		break;
 	default:
@@ -258,12 +273,11 @@ flog = fopen("/tmp/debug.log", "w");
 	keypad(stdscr, TRUE);
 
 	widg_main_init();
-	widg_main_ch(KEY_RESIZE);
 
 	state.ptr_nk_current = regfile_init("NTUSER.DAT");
 	state.current_widget = WIDG_CHILDS;
-
-	widg_childs_init();
+	widg_main_ch(KEY_NK_CHANGE);
+	widg_main_ch(KEY_RESIZE);
 
 	int ch;
 	do {

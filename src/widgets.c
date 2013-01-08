@@ -98,6 +98,10 @@ void scroll_ch(scroll_struct *scroll, int ch) {
 	case KEY_NPAGE:
 		scroll_pagedown(scroll);
 		break;
+	case KEY_RESIZE:
+		getmaxyx(scroll->outer_box, scroll->outer_box_height, scroll->outer_box_width);
+		scroll_update(scroll);
+		break;
 	}
 }
 
