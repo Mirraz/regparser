@@ -48,9 +48,13 @@ err:
 
 #ifndef NDEBUG
 #include <stdio.h>
-void string_print(string str) {
-	printf("%u[%.*s]", (unsigned int)str.len, (int)str.len, str.str);
+void string_fprint(FILE *fout, string str) {
+	fprintf(fout, "%u[%.*s]", (unsigned int)str.len, (int)str.len, str.str);
 }
+void string_print(string str) {
+	string_fprint(stdout, str);
+}
+
 #endif
 
 int string_compare(string a, string b) {

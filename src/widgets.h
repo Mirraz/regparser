@@ -2,6 +2,12 @@
 #define WIDGETS_H_
 
 #include <ncurses.h>
+#include "string_type.h"
+
+typedef struct {
+	string *entries;
+	unsigned int size;
+} string_list_type;
 
 typedef struct {
 	WINDOW *outer_box;
@@ -9,8 +15,7 @@ typedef struct {
 	unsigned int outer_box_height;
 	unsigned int disp_item_idx_first;
 	unsigned int disp_item_idx_selected;
-	const char **items_list;
-	unsigned int items_count;
+	string_list_type list;
 } scroll_struct;
 
 void scroll_update(scroll_struct *scroll);

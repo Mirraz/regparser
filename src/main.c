@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 
@@ -8,8 +9,9 @@
 #include "widgets.h"
 #include "regfile.h"
 #include "parse_common.h"
+#include "string_type.h"
+#include "debug.h"
 
-FILE *fout;
 FILE *flog;
 
 /* ****************** */
@@ -27,8 +29,29 @@ struct {
 	} geom;
 } widg_main;
 
-scroll_struct widg_childs;
-scroll_struct widg_params;
+typedef struct {
+	uint32_t *entries;
+	unsigned int size;
+} ptr_list_type;
+
+typedef struct {
+	scroll_struct scroll;
+	ptr_list_type ptr_list;
+} widg_list_type;
+
+#define widg_list_init_value { \
+	.scroll.list = { \
+		.entries = NULL, \
+		.size = 0 \
+	}, \
+	.ptr_list = { \
+		.entries = NULL, \
+		.size = 0 \
+	} \
+}
+
+widg_list_type widg_childs = widg_list_init_value;
+widg_list_type widg_params = widg_list_init_value;
 
 typedef enum {
 	WIDG_INVALID,
@@ -113,6 +136,8 @@ void widg_main_update() {
 	doupdate();
 
 }
+void widg_childs_ch(int ch);
+void widg_params_ch(int ch);
 
 int widg_main_ch(int ch) {
 	//fprintf(flog, "[%u]\n", ch); fflush(flog);
@@ -126,10 +151,10 @@ int widg_main_ch(int ch) {
 	default:
 		switch (state.current_widget) {
 		case WIDG_CHILDS:
-			//widg_childs_ch(ch);
+			widg_childs_ch(ch);
 			break;
 		case WIDG_PARAMS:
-			//widg_params_ch(ch);
+			widg_params_ch(ch);
 			break;
 		default:
 			//assert(0);
@@ -142,6 +167,63 @@ int widg_main_ch(int ch) {
 
 /* ****************** */
 
+void widg_list_free(widg_list_type *widg) {
+	unsigned int i;
+	if (widg->scroll.list.entries != NULL) {
+		for (i=0; i<widg->scroll.list.size; ++i)
+			string_free(widg->scroll.list.entries[i]);
+		free(widg->scroll.list.entries);
+		widg->scroll.list.entries = NULL;
+		widg->scroll.list.size = 0;
+	}
+	if (widg->ptr_list.entries != NULL) {
+		free(widg->ptr_list.entries);
+		widg->ptr_list.entries = NULL;
+		widg->ptr_list.size = 0;
+	}
+}
+
+void widg_childs_init() {
+	widg_list_free(&widg_childs);
+
+	int height, width;
+	getmaxyx(widg_main.wins.childs, height, width);
+	scroll_struct scroll = {
+		.outer_box = widg_main.wins.childs,
+		.outer_box_width = width,
+		.outer_box_height = height,
+		.disp_item_idx_first = 0,
+		.disp_item_idx_selected = 0
+	};
+
+	string_and_ptr_list list = nk_get_childs_list(state.ptr_nk_current);
+	scroll.list.entries = malloc(list.size * sizeof(string));
+	scroll.list.size = list.size;
+	widg_childs.ptr_list.entries = malloc(list.size * sizeof(uint32_t));
+	widg_childs.ptr_list.size = list.size;
+
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		scroll.list.entries[i] = list.entries[i].str;
+		widg_childs.ptr_list.entries[i] = list.entries[i].ptr;
+	}
+	free(list.entries);
+
+	widg_childs.scroll = scroll;
+	scroll_update(&widg_childs.scroll);
+
+}
+
+void widg_childs_ch(int ch) {
+	scroll_ch(&widg_childs.scroll, ch);
+}
+
+void widg_params_ch(int ch) {
+	(void) ch;
+}
+
+/* ****************** */
+
 int main() {   // int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
@@ -150,15 +232,22 @@ flog = fopen("/tmp/debug.log", "w");
 	initscr();
 	cbreak();
 	noecho();
+	keypad(stdscr, TRUE);
 
 	widg_main_init();
-
 	widg_main_ch(KEY_RESIZE);
+
+	state.ptr_nk_current = regfile_init("NTUSER.DAT");
+	state.current_widget = WIDG_CHILDS;
+
+	widg_childs_init();
 
 	int ch;
 	do {
 		ch = getch();
 	} while (!widg_main_ch(ch));
+
+	regfile_uninit();
 
 	endwin();
 	

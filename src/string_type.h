@@ -13,6 +13,8 @@ void string_free(string str);
 string string_new_from_ansi(const unsigned char *in, size_t in_size);
 string string_new_from_unicode(const unsigned char *in, size_t in_size);
 #ifndef NDEBUG
+#include <stdio.h>
+void string_fprint(FILE *fout, string str);
 void string_print(string str);
 #endif
 int string_compare(string a, string b);
