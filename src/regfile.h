@@ -11,6 +11,9 @@
 uint32_t regfile_init(const char *regfile_path);
 int regfile_uninit();
 
+uint32_t nk_find_child(uint32_t ptr, string name);
+uint32_t nk_get_parent(uint32_t ptr);
+
 typedef struct {
 	string str;
 	uint32_t ptr;
@@ -23,8 +26,6 @@ typedef struct {
 
 void string_and_ptr_list_free(string_and_ptr_list *p_list);
 string_and_ptr_list nk_get_childs_list(uint32_t ptr);
-
-uint32_t nk_find_child(uint32_t ptr, string name);
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr);
 
 typedef struct {

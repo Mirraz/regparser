@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <assert.h>
 
 #include <locale.h>
@@ -197,15 +198,26 @@ void widg_childs_init() {
 	};
 
 	string_and_ptr_list list = nk_get_childs_list(state.ptr_nk_current);
-	scroll.list.entries = malloc(list.size * sizeof(string));
-	scroll.list.size = list.size;
-	widg_childs.ptr_list.entries = malloc(list.size * sizeof(uint32_t));
-	widg_childs.ptr_list.size = list.size;
+	uint32_t ptr_parent = nk_get_parent(state.ptr_nk_current);
+	unsigned int items_count = list.size;
+	if (ptr_not_null(ptr_parent)) ++items_count; // for ".."
+	scroll.list.entries = malloc(items_count * sizeof(string));
+	scroll.list.size = items_count;
+	widg_childs.ptr_list.entries = malloc(items_count * sizeof(uint32_t));
+	widg_childs.ptr_list.size = items_count;
+
+	unsigned int add_if_parent = 0;
+	if (ptr_not_null(ptr_parent)) {
+		string parent = {.str = strndup("..", 2), .len = 2};
+		scroll.list.entries[0] = parent;
+		widg_childs.ptr_list.entries[0] = ptr_parent;
+		++add_if_parent;
+	}
 
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
-		scroll.list.entries[i] = list.entries[i].str;
-		widg_childs.ptr_list.entries[i] = list.entries[i].ptr;
+		scroll.list.entries[i+add_if_parent] = list.entries[i].str;
+		widg_childs.ptr_list.entries[i+add_if_parent] = list.entries[i].ptr;
 	}
 	free(list.entries);
 
@@ -215,7 +227,18 @@ void widg_childs_init() {
 }
 
 void widg_childs_ch(int ch) {
-	scroll_ch(&widg_childs.scroll, ch);
+	switch(ch) {
+	case '\n':
+		;
+		unsigned int idx = widg_childs.scroll.disp_item_idx_selected;
+		assert(idx < widg_childs.ptr_list.size);
+		state.ptr_nk_current = widg_childs.ptr_list.entries[idx];
+		widg_childs_init();
+		break;
+	default:
+		scroll_ch(&widg_childs.scroll, ch);
+		break;
+	}
 }
 
 void widg_params_ch(int ch) {

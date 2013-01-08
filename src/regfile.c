@@ -323,6 +323,7 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 void nk_childs_process(uint32_t ptr,
 		int (*callback)(uint32_t, void *), void *callback_data) {
 	nk_struct *nk = nk_init(ptr);
+	if (ptr_is_null(nk->ptr_chinds_index)) return;
 	return nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data);
 }
 
@@ -405,6 +406,12 @@ uint32_t nk_find_child(uint32_t ptr, string name) {
 	string_and_ptr find = {.str = name, .ptr = ptr_null};
 	nk_childs_process(ptr, childs_find, &find);
 	return find.ptr;
+}
+
+uint32_t nk_get_parent(uint32_t ptr) {
+	if (header->ptr_root_nk == ptr) return ptr_null;
+	nk_struct *nk = nk_init(ptr);
+	return nk->ptr_parent;
 }
 
 string vk_get_name(uint32_t ptr) {
