@@ -45,14 +45,16 @@ uint32_t regfile_init(const char *regfile_path) {
 	structs_check_size();
 
 	fd = open(regfile_path, O_RDONLY);
+	if (fd < 0) {perror("open"); return ptr_null;}
 
 	ssize_t red = read(fd, header, regf_struct_size);
+	if (red < 0) {perror("read"); return ptr_null;}
 	assert(red == regf_struct_size);
 	regf_init(header);
 
 	data = mmap(NULL, header->size_data_area,
 			PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
-	assert(data != MAP_FAILED);
+	if (data == MAP_FAILED) {perror("mmap"); return ptr_null;}
 
 	return header->ptr_root_nk;
 }
@@ -457,6 +459,7 @@ string vk_get_type(uint32_t ptr) {
 
 string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
 	string res = {.len = 0, .str = NULL};
+	if (value_size == 0) return res;
 	switch (vk_type) {
 	case REG_NONE:
 	case REG_BINARY:

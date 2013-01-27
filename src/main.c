@@ -63,7 +63,7 @@ struct {
 } widg_params_widths = {
 	.total_max = 128,
 	.name = 30,
-	.type = 12,
+	.type = 13,
 	.size_value = 10
 };
 
@@ -434,8 +434,12 @@ void widg_pwd_ch(int ch) {
 
 /* ****************** */
 
-int main() {   // int argc, char **argv) {
+int main(int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
+
+	if (argc != 2) {fprintf(stderr, "Usage: %s <regfile path>\n", argv[0]); return 1;}
+	uint32_t ptr_root_nk = regfile_init(argv[1]);
+	if (ptr_root_nk == ptr_null) return 1;
 
 	setlocale(LC_CTYPE, "");
 
@@ -446,7 +450,7 @@ flog = fopen("/tmp/debug.log", "w");
 
 	widg_main_init();
 
-	state.ptr_nk_current = regfile_init("NTUSER.DAT");
+	state.ptr_nk_current = ptr_root_nk;
 	state.current_widget = WIDG_CHILDS;
 	widg_main_ch(KEY_NK_CHANGE);
 	widg_main_ch(KEY_RESIZE);
