@@ -44,4 +44,12 @@ typedef struct {
 void params_parsed_list_free(params_parsed_list *p_list);
 params_parsed_list nk_get_params_parsed_list(uint32_t ptr);
 
+typedef struct {
+	string *entries;
+	unsigned int size;
+} string_list;
+
+void string_list_free(string_list *p_list);
+string_list nk_get_path_list(uint32_t ptr);
+
 #endif /* REGFILE_H_ */

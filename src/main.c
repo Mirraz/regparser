@@ -152,8 +152,10 @@ void widg_main_update() {
 	doupdate();
 
 }
+
 void widg_childs_ch(int ch);
 void widg_params_ch(int ch);
+void widg_pwd_ch(int ch);
 
 int widg_main_ch(int ch) {
 	//fprintf(flog, "[%u]\n", ch); fflush(flog);
@@ -166,10 +168,12 @@ int widg_main_ch(int ch) {
 		widg_main_update();
 		widg_childs_ch(ch);
 		widg_params_ch(ch);
+		widg_pwd_ch(ch);
 		break;
 	case KEY_NK_CHANGE:
 		widg_childs_ch(ch);
 		widg_params_ch(ch);
+		widg_pwd_ch(ch);
 		break;
 	default:
 		switch (state.current_widget) {
@@ -396,6 +400,34 @@ void widg_params_ch(int ch) {
 		break;
 	default:
 		scroll_ch(&widg_params.scroll, ch);
+		break;
+	}
+}
+
+/* ****************** */
+
+void widg_pwd_init() {
+	wclear(widg_main.wins.pwd);
+	wmove(widg_main.wins.pwd, 0, 0);
+	string_list list = nk_get_path_list(state.ptr_nk_current);
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		wprintw(widg_main.wins.pwd, "%.*s/", list.entries[i].len, list.entries[i].str);
+		//fprintf(flog, "%.*s/", (unsigned int)list.entries[i].len, list.entries[i].str);
+	}
+	//fprintf(flog, "\n");
+	string_list_free(&list);
+	wrefresh(widg_main.wins.pwd);
+}
+
+void widg_pwd_ch(int ch) {
+	switch(ch) {
+	case KEY_NK_CHANGE:
+	case KEY_RESIZE:
+		widg_pwd_init();
+		break;
+	default:
+		assert(0);
 		break;
 	}
 }

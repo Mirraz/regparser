@@ -533,3 +533,60 @@ val.value_brief.str = NULL;
 
 	return list;
 }
+
+/* ****************** */
+
+void string_list_free(string_list *p_list) {
+	string_list list = *p_list;
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_free(list.entries[i]);
+	}
+	free(list.entries);
+	p_list->entries = NULL;
+	p_list->size = 0;
+}
+
+typedef struct ptr_list_entry_ ptr_list_entry;
+struct ptr_list_entry_ {
+	uint32_t ptr;
+	ptr_list_entry *next;
+};
+
+string_list nk_get_path_list(uint32_t ptr) {
+	ptr_list_entry *ptr_list = NULL;
+	unsigned int entries_count = 0;
+	do {
+		ptr_list_entry *entry = malloc(sizeof(ptr_list_entry));
+		entry->ptr = ptr;
+		entry->next = ptr_list;
+		ptr_list = entry;
+		++entries_count;
+		if (header->ptr_root_nk == ptr) break;
+		nk_struct *s = nk_init(ptr);
+		ptr = s->ptr_parent;
+	} while (1);
+
+	string_list list;
+	list.size = entries_count;
+	list.entries = malloc(list.size * sizeof(list.entries[0]));
+	assert(list.entries != NULL);
+
+	ptr_list_entry *entry = ptr_list;
+	unsigned int i;
+	for (i=0; i<entries_count; ++i) {
+		list.entries[i] = nk_get_name(entry->ptr);
+		entry = entry->next;
+	}
+
+	// free ptr_list
+	while (ptr_list != NULL) {
+		ptr_list_entry *entry = ptr_list;
+		ptr_list = entry->next;
+		free(entry);
+	}
+
+	return list;
+}
+
+/* ****************** */

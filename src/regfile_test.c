@@ -11,7 +11,7 @@ void test1(uint32_t ptr) {
 	string_and_ptr_list_free(&list);
 }
 
-void test2(uint32_t ptr) {
+uint32_t test2(uint32_t ptr) {
 	string child_name;
 
 	child_name.str = "Software"; child_name.len = 8;
@@ -34,6 +34,13 @@ void test2(uint32_t ptr) {
 	ptr = nk_find_child(ptr, child_name);
 	assert(ptr_not_null(ptr));
 
+	return ptr;
+}
+
+void test3(uint32_t ptr) {
+
+	ptr = test2(ptr);
+
 	params_parsed_list list = nk_get_params_parsed_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
@@ -48,10 +55,23 @@ void test2(uint32_t ptr) {
 	params_parsed_list_free(&list);
 }
 
+void test4(uint32_t ptr) {
+	ptr = test2(ptr);
+
+	string_list list = nk_get_path_list(ptr);
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_print(list.entries[i]);
+		printf("\n");
+	}
+	string_list_free(&list);
+
+}
+
 int main() {
 	uint32_t ptr_root = regfile_init("NTUSER.DAT");
 
-	test2(ptr_root);
+	test4(ptr_root);
 
 	regfile_uninit();
 	return 0;
