@@ -70,20 +70,48 @@ struct {
 #define KEY_NK_CHANGE (KEY_MAX+1)
 
 typedef enum {
+	MODE_INVALID,
+	MODE_MAIN,
+	MODE_VK
+} mode_type;
+
+typedef enum {
 	WIDG_INVALID,
 	WIDG_CHILDS,
 	WIDG_PARAMS
 } widget_type;
 
 struct {
+	mode_type current_mode;
 	widget_type current_widget;
 	uint32_t ptr_nk_current;
 } state = {
+		.current_mode = MODE_MAIN,
 		.current_widget = WIDG_INVALID,
 		.ptr_nk_current = (uint32_t)(-1)
 };
 
 const unsigned int widg_stats_height = 5;
+
+/* ****************** */
+
+int widg_main_ch(int ch);
+int mode_vk_ch(int ch);
+
+int modes_ch(int ch) {
+	switch(state.current_mode) {
+	case MODE_MAIN:
+		return widg_main_ch(ch);
+		break;
+	case MODE_VK:
+		return mode_vk_ch(ch);
+		break;
+	default:
+		assert(0);
+		break;
+	}
+	return 1;
+}
 
 /* ****************** */
 
@@ -384,9 +412,13 @@ void widg_params_init() {
 
 }
 
+void mode_vk_init();
+
 void widg_params_ch(int ch) {
 	switch(ch) {
 	case '\n':
+		state.current_mode = MODE_VK;
+		mode_vk_init();
 		break;
 	case KEY_NK_CHANGE:
 		widg_params_init();
@@ -434,6 +466,81 @@ void widg_pwd_ch(int ch) {
 
 /* ****************** */
 
+void param_print(param_value value, uint32_t vk_type) {
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		unsigned int row_size = 32;
+		unsigned int i;
+		for (i=0; i<value.hex.size; ++i) {
+			printw("%02X ", value.hex.data[i]);
+			if (!((i+1)%row_size)) printw("\n");
+		}
+		if (i%row_size) printw("\n");
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		printw("%.*s\n", value.str.len, value.str.str);
+		break;
+	}
+	case REG_DWORD:
+	case REG_DWORD_BIG_ENDIAN: {
+		printw("0x%08X\n", value.dword);
+		break;
+	}
+	case REG_QWORD: {
+		printw("0x%016llX\n", (long long unsigned int)value.qword);
+		break;
+	}
+	case REG_MULTI_SZ: {
+		unsigned int i;
+		for (i=0; i<value.multi_str.size; ++i)
+			printw("%.*s\n", value.multi_str.entries[i].len, value.multi_str.entries[i].str);
+		break;
+	}
+	}
+}
+
+void mode_vk_init() {
+	clear();
+	move(0, 0);
+
+	uint32_t ptr = widg_params.ptr_list.entries[widg_params.scroll.disp_item_idx_selected];
+	param_parsed_full param = vk_get_parsed(ptr);
+
+	printw("Name: %.*s\n", param.name.len, param.name.str);
+	printw("Type: %.*s\n", param.type_str.len, param.type_str.str);
+	printw("Size: %u\n", param.size_value);
+	printw("Value:\n");
+	param_print(param.value, param.type);
+
+	refresh();
+}
+
+int mode_vk_ch(int ch) {
+	switch (ch) {
+	case 'q':
+		return 1;
+		break;
+	case '\n':
+		state.current_mode = MODE_MAIN;
+		widg_main_ch(KEY_RESIZE);
+		break;
+	case KEY_RESIZE:
+	default:
+		break;
+	}
+	return 0;
+}
+
+/* ****************** */
+
 int main(int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
@@ -458,7 +565,7 @@ flog = fopen("/tmp/debug.log", "w");
 	int ch;
 	do {
 		ch = getch();
-	} while (!widg_main_ch(ch));
+	} while (!modes_ch(ch));
 
 	regfile_uninit();
 
