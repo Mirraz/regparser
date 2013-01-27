@@ -436,7 +436,7 @@ string vk_get_name(uint32_t ptr) {
 	}
 }
 
-string vk_get_type(uint32_t ptr) {
+string vk_get_type_str(uint32_t ptr) {
 	vk_struct *vk = vk_init(ptr);
 	unsigned int j;
 	for (j=0; j<param_types_count && param_type_desc[j].type != vk->param_type; ++j);
@@ -455,6 +455,11 @@ string vk_get_type(uint32_t ptr) {
 		res.len += str_unknown_size;
 	}
 	return res;
+}
+
+uint32_t vk_get_type(uint32_t ptr) {
+	vk_struct *vk = vk_init(ptr);
+	return vk->param_type;
 }
 
 string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
@@ -559,9 +564,206 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 	return res;
 }
 
+typedef struct str_list_entry_ str_list_entry;
+struct str_list_entry_ {
+	string str;
+	str_list_entry *next;
+};
+
+param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
+	param_value res;
+	if (value_size == 0) return res;
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		res.hex.size = value_size;
+		res.hex.data = malloc(res.hex.size);
+		assert(res.hex.data != NULL);
+		memcpy(res.hex.data, value_data, res.hex.size);
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		// in "default" regfile may by "?? ?? .. .. ?? ?? 00 00 ??"
+		//assert(!(value_size & 1));
+		res.str = string_new_from_unicode(value_data, value_size);
+		break;
+	}
+	case REG_DWORD: {
+		assert(value_size == 4);
+		res.dword = *((uint32_t *)value_data);
+		break;
+	}
+	case REG_DWORD_BIG_ENDIAN: {
+		assert(value_size == 4);
+		res.dword = be32toh(*((uint32_t *)value_data));
+		break;
+	}
+	case REG_QWORD: {
+		assert(value_size == 8);
+		res.qword = *((uint64_t *)value_data);
+		break;
+	}
+	case REG_MULTI_SZ: {
+		str_list_entry *str_list = NULL;
+
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		assert(!(value_size & 1));
+		uint32_t utf16_rest = value_size >> 1;
+		unsigned int entries_count = 0;
+		unsigned int i = 0;
+		// sometimes loop stops by condition "i < utf16_rest"
+		while (i < utf16_rest && utf16_data[i] != 0) {
+			utf16_data += i;
+			utf16_rest -= i;
+			i = 0;
+			while (i < utf16_rest && utf16_data[i] != 0) ++i;
+			str_list_entry *entry = malloc(sizeof(str_list_entry));
+			assert(entry != NULL);
+			entry->str = string_new_from_unicode((uint8_t *)utf16_data, i);
+			entry->next = str_list;
+			str_list = entry;
+			++entries_count;
+			if (i == utf16_rest) break;
+			++i;
+		}
+
+		res.multi_str.size = entries_count;
+		res.multi_str.entries = malloc(res.multi_str.size * sizeof(res.multi_str.entries[0]));
+		assert(res.multi_str.entries != NULL);
+
+		str_list_entry *entry = str_list;
+		for (i=0; i<entries_count; ++i) {
+			res.multi_str.entries[i] = entry->str;
+			entry = entry->next;
+		}
+
+		// free str_list
+		while (str_list != NULL) {
+			str_list_entry *entry = str_list;
+			str_list = entry->next;
+			free(entry);
+		}
+
+		break;
+	}
+	}
+	return res;
+}
+
+typedef struct {
+	param_value *entries;
+	unsigned int size;
+} param_value_list;
+
+param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_type) {
+	param_value res;
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		unsigned int i;
+		for (i=0; i<list.size; ++i)
+			res.hex.size += list.entries[i].hex.size;
+		res.hex.data = malloc(res.hex.size);
+		assert(res.hex.data != NULL);
+		uint8_t *dst = res.hex.data;
+		for (i=0; i<list.size; ++i) {
+			memcpy(dst, list.entries[i].hex.data, list.entries[i].hex.size);
+			dst += list.entries[i].hex.size;
+			free(list.entries[i].hex.data);
+		}
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		unsigned int i;
+		for (i=0; i<list.size; ++i)
+			res.str.len += list.entries[i].str.len;
+		res.str.str = malloc(res.str.len);
+		assert(res.str.str != NULL);
+		char *dst = (char *)res.str.str;
+		for (i=0; i<list.size; ++i) {
+			memcpy(dst, list.entries[i].str.str, list.entries[i].str.len);
+			dst += list.entries[i].str.len;
+			string_free(list.entries[i].str);
+		}
+		break;
+	}
+	case REG_DWORD:
+	case REG_DWORD_BIG_ENDIAN:
+	case REG_QWORD:
+		assert(0);
+		break;
+	case REG_MULTI_SZ: {
+		unsigned int i;
+		for (i=0; i<list.size; ++i)
+			res.multi_str.size += list.entries[i].multi_str.size;
+		res.multi_str.entries = malloc(res.multi_str.size);
+		assert(res.multi_str.entries != NULL);
+		unsigned int j, idx = 0;
+		for (i=0; i<list.size; ++i) {
+			for (j=0; j<list.entries[i].multi_str.size; ++j) {
+				// not deep coping => not free
+				res.multi_str.entries[idx++] = list.entries[i].multi_str.entries[j];
+			}
+		}
+		break;
+	}
+	}
+	free(list.entries);
+	return res;
+}
+
+void param_value_free(param_value *p_value, uint32_t vk_type) {
+	param_value value = *p_value;
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		free(value.hex.data);
+		p_value->hex.data = NULL;
+		p_value->hex.size = 0;
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		string_free(value.str);
+		p_value->str.str = NULL;
+		p_value->str.len = 0;
+		break;
+	}
+	case REG_DWORD:
+	case REG_DWORD_BIG_ENDIAN:
+	case REG_QWORD:
+		break;
+	case REG_MULTI_SZ: {
+		unsigned int i;
+		for (i=0; i<value.multi_str.size; ++i) string_free(value.multi_str.entries[i]);
+		free(value.multi_str.entries);
+		p_value->multi_str.entries = NULL;
+		p_value->multi_str.size = 0;
+		break;
+	}
+	}
+}
+
 string vk_get_value_brief(uint32_t ptr) {
 	vk_struct *s = vk_init(ptr);
-//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
+	//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
 	if (!(s->size_param_value & 0x80000000)) {
 		value_struct *block = (value_struct *)(data + s->ptr_param_value);
 		// this condition doesn't work
@@ -587,6 +789,45 @@ string vk_get_value_brief(uint32_t ptr) {
 		);
 	}
 }
+
+param_value vk_get_value(uint32_t ptr) {
+	vk_struct *s = vk_init(ptr);
+	//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
+	if (!(s->size_param_value & 0x80000000)) {
+		value_struct *block = (value_struct *)(data + s->ptr_param_value);
+		// this condition doesn't work
+		//if (s->size_param_value <= PARAM_PART_MAX)
+		if (abs(block->size) >= s->size_param_value) {
+			value_struct *param_value =
+					value_init(s->ptr_param_value, s->size_param_value);
+			return param_block_get_value(param_value->value, s->size_param_value, s->param_type);
+		} else {
+			// db
+			db_struct *db = db_init(s->ptr_param_value);
+			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
+
+			param_value_list list = {.size = db->count_records};
+			list.entries = malloc(list.size * sizeof(list.entries[0]));
+			assert(list.entries != NULL);
+
+			uint32_t rest = s->size_param_value;
+			unsigned int i;
+			for (i=0; i<db->count_records; ++i) {
+				uint32_t part_size = (rest > PARAM_PART_MAX ? PARAM_PART_MAX : rest);
+				rest -= part_size;
+				value_struct *part = value_init(part_index->ptr_blocks[i], part_size);
+				list.entries[i] = param_block_get_value(part->value, part_size, s->param_type);
+			}
+
+			return param_values_list_merge_and_free(list, s->param_type);
+
+		}
+	} else {
+		return param_block_get_value((uint8_t *)&(s->ptr_param_value), s->size_param_value & ~0x80000000, s->param_type);
+	}
+}
+
+/* ****************** */
 
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	nk_struct *s = nk_init(ptr);
@@ -649,7 +890,7 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 		uint32_t ptr_vk = index_params->ptr_blocks[i];
 		param_parsed val;
 		val.name = vk_get_name(ptr_vk);
-		val.type = vk_get_type(ptr_vk);
+		val.type = vk_get_type_str(ptr_vk);
 		vk_struct *vk = vk_init(ptr_vk);
 		val.size_value = vk->size_param_value & ~0x80000000;
 		val.value_brief = vk_get_value_brief(ptr_vk);

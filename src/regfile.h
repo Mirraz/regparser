@@ -8,11 +8,29 @@
 #define ptr_not_null(ptr) ((ptr) != (uint32_t)-1)
 #define ptr_null ((uint32_t)-1)
 
+typedef enum {
+	REG_NONE =		0x00,
+	REG_SZ =		0x01,
+	REG_EXPAND_SZ =	0x02,
+	REG_BINARY =	0x03,
+	REG_DWORD =		0x04,
+	REG_DWORD_LITTLE_ENDIAN = REG_DWORD,
+	REG_DWORD_BIG_ENDIAN = 0x05,
+	REG_LINK =		0x06,
+	REG_MULTI_SZ =	0x07,
+	REG_RESOURCE_LIST = 0x08,
+	REG_FULL_RESOURCE_DESCRIPTOR = 0x09,
+	REG_RESOURCE_REQUIREMENTS_LIST = 0x0A,
+	REG_QWORD =		0x0B
+} param_types;
+#define param_types_count 12
+
 uint32_t regfile_init(const char *regfile_path);
 int regfile_uninit();
 
 uint32_t nk_find_child(uint32_t ptr, string name);
 uint32_t nk_get_parent(uint32_t ptr);
+uint32_t vk_get_type(uint32_t ptr);
 
 typedef struct {
 	string str;
@@ -48,6 +66,20 @@ typedef struct {
 	string *entries;
 	unsigned int size;
 } string_list;
+
+typedef union {
+	uint32_t dword;
+	uint64_t qword;
+	struct {
+		uint8_t *data;
+		uint32_t size;
+	} hex;
+	string str;
+	string_list multi_str;
+} param_value;
+
+void param_value_free(param_value *p_value, uint32_t vk_type);
+param_value vk_get_value(uint32_t ptr);
 
 void string_list_free(string_list *p_list);
 string_list nk_get_path_list(uint32_t ptr);

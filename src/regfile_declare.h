@@ -195,23 +195,6 @@ typedef struct {
 
 /* ********************************** */
 
-typedef enum {
-	REG_NONE =		0x00,
-	REG_SZ =		0x01,
-	REG_EXPAND_SZ =	0x02,
-	REG_BINARY =	0x03,
-	REG_DWORD =		0x04,
-	REG_DWORD_LITTLE_ENDIAN = REG_DWORD,
-	REG_DWORD_BIG_ENDIAN = 0x05,
-	REG_LINK =		0x06,
-	REG_MULTI_SZ =	0x07,
-	REG_RESOURCE_LIST = 0x08,
-	REG_FULL_RESOURCE_DESCRIPTOR = 0x09,
-	REG_RESOURCE_REQUIREMENTS_LIST = 0x0A,
-	REG_QWORD =		0x0B
-} param_types;
-#define param_types_count 12
-
 typedef struct {
 	uint32_t type;
 	const char* const name;
