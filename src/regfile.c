@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <endian.h>
 #include <string.h>
+#include <memory.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -11,6 +12,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
+#include "common.h"
 #include "string_type.h"
 #include "rbtree.h"
 #include "parse_common.h"
@@ -453,6 +455,136 @@ string vk_get_type(uint32_t ptr) {
 	return res;
 }
 
+string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
+	string res = {.len = 0, .str = NULL};
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_BINARY:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	default: {
+		// +1 for '\0' in snprintf()
+		char *brief = malloc(vk_value_brief_max_len + 1);
+		assert(brief != NULL);
+		char *brief_cur = brief;
+		unsigned int brief_rest = vk_value_brief_max_len;
+		unsigned int i;
+		for (i=0; i<value_size; ++i) {
+			if (brief_rest < 2) break;
+			// +1 for '\0'
+			snprintf(brief_cur, 2+1, "%02X", value_data[i]);
+			brief_cur += 2;
+			brief_rest -= 2;
+			if (i != value_size-1) {
+				if (brief_rest < 3) break;
+				*brief_cur = ' ';
+				brief_cur += 1;
+				brief_rest -= 1;
+			}
+		}
+		assert(brief_cur - brief == vk_value_brief_max_len - brief_rest);
+		res.len = brief_cur - brief;
+		res.str = malloc(res.len);
+		assert(res.str != NULL);
+		memcpy((char *)res.str, brief, res.len);
+		free(brief);
+		break;
+	}
+	case REG_SZ:
+	case REG_EXPAND_SZ:
+	case REG_LINK: {
+		// in "default" regfile may be "?? ?? .. .. ?? ?? 00 00 ??"
+		//assert(!(value_size & 1));
+		res = string_new_from_unicode(value_data,
+				MIN(value_size, vk_value_brief_max_len));
+		break;
+	}
+	case REG_DWORD: {
+		assert(value_size == 4);
+		assert(vk_value_brief_max_len >= 2+8);
+		// +1 for '\0'
+		char brief[2+8+1] = "0x00000000";
+		// +1 for '\0'
+		snprintf(brief+2, 8+1, "%08X", *((uint32_t *)value_data));
+		res.len = 2+8;
+		res.str = malloc(res.len);
+		assert(res.str != NULL);
+		memcpy((char *)res.str, brief, res.len);
+		break;
+	}
+	case REG_DWORD_BIG_ENDIAN: {
+		assert(value_size == 4);
+		assert(vk_value_brief_max_len >= 2+8);
+		// +1 for '\0'
+		char brief[2+8+1] = "0x00000000";
+		// +1 for '\0'
+		snprintf(brief+2, 8+1, "%08X", be32toh(*((uint32_t *)value_data)));
+		res.len = 2+8;
+		res.str = malloc(res.len);
+		assert(res.str != NULL);
+		memcpy((char *)res.str, brief, res.len);
+		break;
+	}
+	case REG_QWORD: {
+		assert(value_size == 8);
+		assert(vk_value_brief_max_len >= 2+16);
+		// +1 for '\0'
+		char brief[2+16+1] = "0x0000000000000000";
+		// +1 for '\0'
+		snprintf(brief+2, 16+1, "%016llX", (long long unsigned int)(*((uint64_t *)value_data)));
+		res.len = 2+16;
+		res.str = malloc(res.len);
+		assert(res.str != NULL);
+		memcpy((char *)res.str, brief, res.len);
+		break;
+	}
+	case REG_MULTI_SZ: {
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		assert(!(value_size & 1));
+		unsigned int i = 0;
+		while (
+				i < value_size >> 1 &&
+				i < vk_value_brief_max_len &&
+				utf16_data[i] != 0
+		) ++i;
+		if (!(i < value_size >> 1 && i < vk_value_brief_max_len)) --i;
+		res = string_new_from_unicode(value_data, i);
+		break;
+	}
+	}
+	return res;
+}
+
+string vk_get_value_brief(uint32_t ptr) {
+	vk_struct *s = vk_init(ptr);
+//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
+	if (!(s->size_param_value & 0x80000000)) {
+		value_struct *block = (value_struct *)(data + s->ptr_param_value);
+		// this condition doesn't work
+		//if (s->size_param_value <= PARAM_PART_MAX)
+		if (abs(block->size) >= s->size_param_value) {
+			value_struct *param_value =
+					value_init(s->ptr_param_value, s->size_param_value);
+			return param_get_value_brief(param_value->value, s->size_param_value, s->param_type);
+		} else {
+			// db
+			db_struct *db = db_init(s->ptr_param_value);
+			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
+			// only first block for brief
+			uint32_t part_size = MIN(s->size_param_value, PARAM_PART_MAX);
+			value_struct *part = value_init(part_index->ptr_blocks[0], part_size);
+			return param_get_value_brief(part->value, part_size, s->param_type);
+		}
+	} else {
+		return param_get_value_brief(
+				(uint8_t *)&(s->ptr_param_value),
+				s->size_param_value & ~0x80000000,
+				s->param_type
+		);
+	}
+}
+
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 	nk_struct *s = nk_init(ptr);
 	if (ptr_is_null(s->ptr_params_index)) {
@@ -517,8 +649,7 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 		val.type = vk_get_type(ptr_vk);
 		vk_struct *vk = vk_init(ptr_vk);
 		val.size_value = vk->size_param_value & ~0x80000000;
-val.value_brief.len = 0;
-val.value_brief.str = NULL;
+		val.value_brief = vk_get_value_brief(ptr_vk);
 		val.ptr = ptr_vk;
 		list.entries[i] = val;
 	}
