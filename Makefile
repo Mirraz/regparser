@@ -1,7 +1,8 @@
 CC=gcc
 LD=gcc
+STRIP=strip
 WARNINGS=-Wall -Wextra
-COPTIM=-march=native -mmmx -msse -msse2 -mssse3 -mcx16 -mfpmath=sse,387 -O2 -fomit-frame-pointer -pipe
+COPTIM=-march=x86-64 -O2 -fomit-frame-pointer -pipe
 DEFINES=
 INCLUDES=
 CFLAGS=$(WARNINGS) $(COPTIM) $(DEFINES) $(INCLUDES)
@@ -20,6 +21,7 @@ $(BUILD_DIR):
 
 $(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/rbtree.o $(BUILD_DIR)/string_type.o
 	$(LD) -o $@ $^ $(LDFLAGS)
+	$(STRIP) $@
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/regfile.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
