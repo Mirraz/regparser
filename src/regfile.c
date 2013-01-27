@@ -335,7 +335,7 @@ int child_print_name(uint32_t ptr, void *data) {
 	(void)data;
 	string name = nk_get_name(ptr);
 	string_print(name);
-	string_free(name);
+	string_free(&name);
 	return 0;
 }
 
@@ -362,12 +362,11 @@ string_and_ptr_list string_and_ptr_list_new(unsigned int size) {
 }
 
 void string_and_ptr_list_free(string_and_ptr_list *p_list) {
-	string_and_ptr_list list = *p_list;
 	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_free(list.entries[i].str);
+	for (i=0; i<p_list->size; ++i) {
+		string_free(&p_list->entries[i].str);
 	}
-	free(list.entries);
+	free(p_list->entries);
 	p_list->entries = NULL;
 	p_list->size = 0;
 }
@@ -402,7 +401,7 @@ int childs_find(uint32_t ptr, void *data) {
 	if (res == 0) {
 		find_child->ptr = ptr;
 	}
-	string_free(cur_name);
+	string_free(&cur_name);
 	return !res;
 }
 
@@ -457,10 +456,7 @@ string vk_get_type_str(uint32_t ptr) {
 	return res;
 }
 
-uint32_t vk_get_type(uint32_t ptr) {
-	vk_struct *vk = vk_init(ptr);
-	return vk->param_type;
-}
+/* ****************** */
 
 string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
 	string res = {.len = 0, .str = NULL};
@@ -695,7 +691,7 @@ param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_
 		for (i=0; i<list.size; ++i) {
 			memcpy(dst, list.entries[i].str.str, list.entries[i].str.len);
 			dst += list.entries[i].str.len;
-			string_free(list.entries[i].str);
+			string_free(&list.entries[i].str);
 		}
 		break;
 	}
@@ -725,7 +721,6 @@ param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_
 }
 
 void param_value_free(param_value *p_value, uint32_t vk_type) {
-	param_value value = *p_value;
 	switch (vk_type) {
 	case REG_NONE:
 	case REG_BINARY:
@@ -733,7 +728,7 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 	case REG_FULL_RESOURCE_DESCRIPTOR:
 	case REG_RESOURCE_REQUIREMENTS_LIST:
 	default: {
-		free(value.hex.data);
+		free(p_value->hex.data);
 		p_value->hex.data = NULL;
 		p_value->hex.size = 0;
 		break;
@@ -741,9 +736,7 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 	case REG_SZ:
 	case REG_EXPAND_SZ:
 	case REG_LINK: {
-		string_free(value.str);
-		p_value->str.str = NULL;
-		p_value->str.len = 0;
+		string_free(&p_value->str);
 		break;
 	}
 	case REG_DWORD:
@@ -752,8 +745,9 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 		break;
 	case REG_MULTI_SZ: {
 		unsigned int i;
-		for (i=0; i<value.multi_str.size; ++i) string_free(value.multi_str.entries[i]);
-		free(value.multi_str.entries);
+		for (i=0; i<p_value->multi_str.size; ++i)
+			string_free(&p_value->multi_str.entries[i]);
+		free(p_value->multi_str.entries);
 		p_value->multi_str.entries = NULL;
 		p_value->multi_str.size = 0;
 		break;
@@ -827,6 +821,25 @@ param_value vk_get_value(uint32_t ptr) {
 	}
 }
 
+void param_parsed_full_free(param_parsed_full *p_param) {
+	param_parsed_full param = *p_param;
+	string_free(&p_param->name);
+	string_free(&p_param->type_str);
+	param_value_free(&p_param->value, param.type);
+	p_param->type = param_types_count;
+}
+
+param_parsed_full vk_get_parsed(uint32_t ptr) {
+	param_parsed_full res;
+	vk_struct *vk = vk_init(ptr);
+	res.name = vk_get_name(ptr);
+	res.type = vk->param_type;
+	res.type_str = vk_get_type_str(ptr);
+	res.size_value = vk->size_param_value & ~0x80000000;
+	res.value = vk_get_value(ptr);
+	return res;
+}
+
 /* ****************** */
 
 string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
@@ -859,14 +872,13 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 }
 
 void params_parsed_list_free(params_parsed_list *p_list) {
-	params_parsed_list list = *p_list;
 	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_free(list.entries[i].name);
-		string_free(list.entries[i].type);
-		string_free(list.entries[i].value_brief);
+	for (i=0; i<p_list->size; ++i) {
+		string_free(&p_list->entries[i].name);
+		string_free(&p_list->entries[i].type);
+		string_free(&p_list->entries[i].value_brief);
 	}
-	free(list.entries);
+	free(p_list->entries);
 	p_list->entries = NULL;
 	p_list->size = 0;
 }
@@ -912,12 +924,11 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 /* ****************** */
 
 void string_list_free(string_list *p_list) {
-	string_list list = *p_list;
 	unsigned int i;
-	for (i=0; i<list.size; ++i) {
-		string_free(list.entries[i]);
+	for (i=0; i<p_list->size; ++i) {
+		string_free(&p_list->entries[i]);
 	}
-	free(list.entries);
+	free(p_list->entries);
 	p_list->entries = NULL;
 	p_list->size = 0;
 }

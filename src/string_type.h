@@ -9,7 +9,7 @@ typedef struct {
 	str_len_type len;	// bytes (not symbols) count
 } string;
 
-void string_free(string str);
+void string_free(string *p_str);
 string string_new_from_ansi(const unsigned char *in, size_t in_size);
 string string_new_from_unicode(const unsigned char *in, size_t in_size);
 #ifndef NDEBUG

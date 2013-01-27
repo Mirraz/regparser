@@ -30,7 +30,6 @@ int regfile_uninit();
 
 uint32_t nk_find_child(uint32_t ptr, string name);
 uint32_t nk_get_parent(uint32_t ptr);
-uint32_t vk_get_type(uint32_t ptr);
 
 typedef struct {
 	string str;
@@ -78,8 +77,16 @@ typedef union {
 	string_list multi_str;
 } param_value;
 
-void param_value_free(param_value *p_value, uint32_t vk_type);
-param_value vk_get_value(uint32_t ptr);
+typedef struct {
+	string name;
+	uint32_t type;
+	string type_str;
+	uint32_t size_value;
+	param_value value;
+} param_parsed_full;
+
+void param_parsed_full_free(param_parsed_full *p_param);
+param_parsed_full vk_get_parsed(uint32_t ptr);
 
 void string_list_free(string_list *p_list);
 string_list nk_get_path_list(uint32_t ptr);

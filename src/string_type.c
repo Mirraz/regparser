@@ -4,8 +4,10 @@
 #include <iconv.h>
 #include "string_type.h"
 
-void string_free(string str) {
-	free((char *)str.str);
+void string_free(string *p_str) {
+	free((char *)p_str->str);
+	p_str->str = NULL;
+	p_str->len = 0;
 }
 
 string string_new_from_ansi(const unsigned char *in, size_t in_size) {

@@ -118,10 +118,9 @@ void test5(uint32_t ptr) {
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
 		uint32_t vk_ptr = list.entries[i].ptr;
-		uint32_t vk_type = vk_get_type(vk_ptr);
-		param_value value = vk_get_value(vk_ptr);
-		param_print(value, vk_type);
-		param_value_free(&value, vk_type);
+		param_parsed_full param = vk_get_parsed(vk_ptr);
+		param_print(param.value, param.type);
+		param_parsed_full_free(&param);
 	}
 	params_parsed_list_free(&list);
 

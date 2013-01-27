@@ -198,7 +198,7 @@ void widg_list_free(widg_list_type *widg) {
 	unsigned int i;
 	if (widg->scroll.list.entries != NULL) {
 		for (i=0; i<widg->scroll.list.size; ++i)
-			string_free(widg->scroll.list.entries[i]);
+			string_free(&widg->scroll.list.entries[i]);
 		free(widg->scroll.list.entries);
 		widg->scroll.list.entries = NULL;
 		widg->scroll.list.size = 0;
