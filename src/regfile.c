@@ -553,7 +553,7 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 				utf16_data[i] != 0
 		) ++i;
 		if (!(i < value_size >> 1 && i < vk_value_brief_max_len)) --i;
-		res = string_new_from_unicode(value_data, i);
+		res = string_new_from_unicode(value_data, i*2);
 		break;
 	}
 	}
@@ -606,7 +606,8 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		break;
 	}
 	case REG_MULTI_SZ: {
-		str_list_entry *str_list = NULL;
+		str_list_entry *list_first = NULL;
+		str_list_entry *list_last = NULL;
 
 		uint16_t *utf16_data = (uint16_t *)value_data;
 		assert(!(value_size & 1));
@@ -619,11 +620,20 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 			utf16_rest -= i;
 			i = 0;
 			while (i < utf16_rest && utf16_data[i] != 0) ++i;
-			str_list_entry *entry = malloc(sizeof(str_list_entry));
-			assert(entry != NULL);
-			entry->str = string_new_from_unicode((uint8_t *)utf16_data, i);
-			entry->next = str_list;
-			str_list = entry;
+
+			str_list_entry *list_entry = malloc(sizeof(str_list_entry));
+			assert(list_entry != NULL);
+			list_entry->str = string_new_from_unicode((unsigned char *)utf16_data, i*2);
+			list_entry->next = NULL;
+			if (list_last == NULL) {
+				list_last = list_entry;
+				assert(list_first == NULL);
+				list_first = list_last;
+			} else {
+				list_last->next = list_entry;
+				list_last = list_entry;
+			}
+
 			++entries_count;
 			if (i == utf16_rest) break;
 			++i;
@@ -633,17 +643,18 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		res.multi_str.entries = malloc(res.multi_str.size * sizeof(res.multi_str.entries[0]));
 		assert(res.multi_str.entries != NULL);
 
-		str_list_entry *entry = str_list;
+		str_list_entry *list_entry = list_first;
 		for (i=0; i<entries_count; ++i) {
-			res.multi_str.entries[i] = entry->str;
-			entry = entry->next;
+			assert(list_entry != NULL);
+			res.multi_str.entries[i] = list_entry->str;
+			list_entry = list_entry->next;
 		}
 
 		// free str_list
-		while (str_list != NULL) {
-			str_list_entry *entry = str_list;
-			str_list = entry->next;
-			free(entry);
+		while (list_first != NULL) {
+			str_list_entry *list_entry = list_first;
+			list_first = list_first->next;
+			free(list_entry);
 		}
 
 		break;
