@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 
 #include "common.h"
+#include "debug.h"
 #include "string_type.h"
 #include "rbtree.h"
 #include "parse_common.h"
@@ -500,8 +501,14 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 	case REG_LINK: {
 		// in "default" regfile may be "?? ?? .. .. ?? ?? 00 00 ??"
 		//assert(!(value_size & 1));
-		res = string_new_from_unicode((uint16_t *)value_data,
-				MIN(value_size, vk_value_brief_max_len) >> 1);
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		unsigned int utf16_data_size = value_size >> 1;
+		if (utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
+#ifndef NDEBUG
+		else fprintf(flog, "regfile.c: param_get_value_brief: REG_SZ\n");
+#endif
+		res = string_new_from_unicode(utf16_data,
+				MIN(utf16_data_size, vk_value_brief_max_len >> 1));
 		break;
 	}
 	case REG_DWORD: {
@@ -587,7 +594,13 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 	case REG_LINK: {
 		// in "default" regfile may by "?? ?? .. .. ?? ?? 00 00 ??"
 		//assert(!(value_size & 1));
-		res.str = string_new_from_unicode((uint16_t *)value_data, value_size >> 1);
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		unsigned int utf16_data_size = value_size >> 1;
+		if (utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
+#ifndef NDEBUG
+		else fprintf(flog, "regfile.c: param_block_get_value: REG_SZ\n");
+#endif
+		res.str = string_new_from_unicode(utf16_data, utf16_data_size);
 		break;
 	}
 	case REG_DWORD: {
@@ -610,7 +623,6 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		str_list_entry *list_last = NULL;
 
 		uint16_t *utf16_data = (uint16_t *)value_data;
-		assert(!(value_size & 1));
 		uint32_t utf16_rest = value_size >> 1;
 		unsigned int entries_count = 0;
 		unsigned int i = 0;

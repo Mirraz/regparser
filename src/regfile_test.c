@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <stdio.h>
+#include "debug.h"
 #include "regfile.h"
+
+FILE *flog;
 
 void test1() {
 	uint32_t ptr = regfile_init("NTUSER.DAT");
@@ -179,6 +182,10 @@ void test3() {
 }
 
 int main() {
+flog = fopen("/tmp/debug.log", "w");
+
 	test3();
+
+fclose(flog);
 	return 0;
 }
