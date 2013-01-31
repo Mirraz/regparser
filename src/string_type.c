@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <memory.h>
 #include <iconv.h>
 #include "string_type.h"
@@ -10,24 +11,25 @@ void string_free(string *p_str) {
 	p_str->len = 0;
 }
 
-string string_new_from_ansi(const unsigned char *in, size_t in_size) {
-	char *res_str = malloc(in_size);
-	memcpy(res_str, in, in_size);
-	string res = {.str = (const char *)res_str, .len = in_size};
+string string_new_from_ansi(const uint8_t *in, size_t in_count) {
+	char *res_str = malloc(in_count);
+	memcpy(res_str, in, in_count);
+	string res = {.str = (const char *)res_str, .len = in_count};
 	return res;
 }
 
-string string_new_from_unicode(const unsigned char *in, size_t in_size) {
+string string_new_from_unicode(const uint16_t *in, size_t in_count) {
 	char *res_str = NULL;
 	size_t res_size = 0;
 
 	iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
 	if (cd == (iconv_t)(-1)) goto err;
 
-	size_t buf_size = in_size * 2;			// ???
+	size_t buf_size = in_count * 4;			// ???
 	char *buf = malloc(buf_size);
 	if (buf == NULL) goto err2;
 
+	size_t in_size = in_count * 2;
 	size_t out_size = buf_size;
 	char *out = buf;
 	size_t r = iconv(cd, (char **)&in, &in_size, &out, &out_size);
@@ -82,10 +84,10 @@ int main() {
 		0xa0, 0x22, 0x9b, 0x22, 0x34, 0xd8, 0x91, 0xdd, 0x34, 0xd8, 0x22, 0xdd,
 		0x34, 0xd8, 0x20, 0xdd, 0x34, 0xd8, 0x2b, 0xdd
 	};
-	printf("%d\n", sizeof(in));
-	string str = string_new_from_unicode(in, sizeof(in));
+	printf("%u\n", (unsigned int)sizeof(in));
+	string str = string_new_from_unicode((uint16_t *)in, sizeof(in)/2);
 	printf("%u[%.*s]\n", (unsigned int)str.len, (int)str.len, str.str);
-	string_free(str);
+	string_free(&str);
 	return 0;
 }
 */

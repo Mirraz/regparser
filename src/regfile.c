@@ -277,7 +277,7 @@ string nk_get_name(uint32_t ptr) {
 		name = string_new_from_ansi(s->key_name, s->size_key_name);
 	} else {
 		// unicode
-		name = string_new_from_unicode(s->key_name, s->size_key_name);
+		name = string_new_from_unicode((uint16_t *)s->key_name, s->size_key_name >> 1);
 	}
 	return name;
 }
@@ -429,7 +429,7 @@ string vk_get_name(uint32_t ptr) {
 			name = string_new_from_ansi(s->param_name, s->size_param_name);
 		} else {
 			// unicode
-			name = string_new_from_unicode(s->param_name, s->size_param_name);
+			name = string_new_from_unicode((uint16_t *)s->param_name, s->size_param_name >> 1);
 		}
 		return name;
 	}
@@ -500,8 +500,8 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 	case REG_LINK: {
 		// in "default" regfile may be "?? ?? .. .. ?? ?? 00 00 ??"
 		//assert(!(value_size & 1));
-		res = string_new_from_unicode(value_data,
-				MIN(value_size, vk_value_brief_max_len));
+		res = string_new_from_unicode((uint16_t *)value_data,
+				MIN(value_size, vk_value_brief_max_len) >> 1);
 		break;
 	}
 	case REG_DWORD: {
@@ -553,7 +553,7 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 				utf16_data[i] != 0
 		) ++i;
 		if (!(i < value_size >> 1 && i < vk_value_brief_max_len)) --i;
-		res = string_new_from_unicode(value_data, i*2);
+		res = string_new_from_unicode((uint16_t *)value_data, i);
 		break;
 	}
 	}
@@ -587,7 +587,7 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 	case REG_LINK: {
 		// in "default" regfile may by "?? ?? .. .. ?? ?? 00 00 ??"
 		//assert(!(value_size & 1));
-		res.str = string_new_from_unicode(value_data, value_size);
+		res.str = string_new_from_unicode((uint16_t *)value_data, value_size >> 1);
 		break;
 	}
 	case REG_DWORD: {
@@ -623,7 +623,7 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 
 			str_list_entry *list_entry = malloc(sizeof(str_list_entry));
 			assert(list_entry != NULL);
-			list_entry->str = string_new_from_unicode((unsigned char *)utf16_data, i*2);
+			list_entry->str = string_new_from_unicode(utf16_data, i);
 			list_entry->next = NULL;
 			if (list_last == NULL) {
 				list_last = list_entry;

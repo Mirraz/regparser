@@ -10,8 +10,9 @@ typedef struct {
 } string;
 
 void string_free(string *p_str);
-string string_new_from_ansi(const unsigned char *in, size_t in_size);
-string string_new_from_unicode(const unsigned char *in, size_t in_size);
+string string_new_from_ansi(const uint8_t *in, size_t in_count);
+// in_count - count of uint16_t elements
+string string_new_from_unicode(const uint16_t *in, size_t in_count);
 #ifndef NDEBUG
 #include <stdio.h>
 void string_fprint(FILE *fout, string str);
