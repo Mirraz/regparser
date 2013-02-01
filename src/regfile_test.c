@@ -1,19 +1,25 @@
+#define _GNU_SOURCE
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "debug.h"
 #include "regfile.h"
 
 FILE *flog;
 
-void test1() {
-	uint32_t ptr = regfile_init("NTUSER.DAT");
-
+void test1_1(uint32_t ptr) {
 	string_and_ptr_list list = nk_get_childs_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
 		string_print(list.entries[i].str); printf(" %08X\n", list.entries[i].ptr);
 	}
 	string_and_ptr_list_free(&list);
+}
+
+void test1() {
+	uint32_t ptr = regfile_init("NTUSER.DAT");
+
+	test1_1(ptr);
 
 	regfile_uninit();
 }
@@ -128,7 +134,7 @@ void test2() {
 	regfile_uninit();
 }
 
-void test3_1(uint32_t ptr) {
+void print_params_parsed_full(uint32_t ptr) {
 	params_parsed_list list = nk_get_params_parsed_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
@@ -176,15 +182,88 @@ void test3() {
 	ptr = nk_find_child(ptr, child_name);
 	assert(ptr_not_null(ptr));
 
-	test3_1(ptr);
+	print_params_parsed_full(ptr);
 
 	regfile_uninit();
 }
 
-int main() {
+void print_path(uint32_t ptr) {
+	string_list path_list = nk_get_path_list(ptr);
+	unsigned int j;
+	for (j=0; j<path_list.size; ++j) {
+		string str = path_list.entries[j];
+		printf("%.*s", (unsigned int)str.len, str.str);
+		if (j != path_list.size-1) printf("/");
+	}
+	string_list_free(&path_list);
+}
+
+#include <unistd.h>
+
+void test_recur(uint32_t ptr) {
+	string_and_ptr_list list = nk_get_childs_list(ptr);
+	unsigned int i;
+	for (i=0; i<list.size; ++i) {
+		string_and_ptr child = list.entries[i];
+		string_print(child.str); printf("\n");
+
+		print_path(child.ptr); printf("\n");
+
+		printf("____________________________\n");
+		print_params_parsed_full(child.ptr);
+		printf("############################\n");
+
+		test_recur(child.ptr);
+	}
+	string_and_ptr_list_free(&list);
+}
+
+void test_recut_start(int argc, char **argv) {
+	assert(argc == 2);
+
+	uint32_t ptr_root_nk = regfile_init(argv[1]);
+	if (ptr_root_nk == ptr_null) return;
+
+	test_recur(ptr_root_nk);
+
+	regfile_uninit();
+}
+
+void test_key_path(int argc, char **argv) {
+	assert(argc == 3);
+
+	uint32_t ptr = regfile_init(argv[1]);
+	if (ptr == ptr_null) return;
+
+	char *path = argv[2];
+
+	do {
+		char *end = strchrnul(path, '/');
+		string item = {.str = path, .len = end - path};
+		if (item.len != 0) {
+
+			ptr = nk_find_child(ptr, item);
+			if (ptr == ptr_null) return;
+
+		}
+		if (*end == '\0') break;
+		path = end + 1;
+	} while(1);
+
+	print_path(ptr); printf("\n");
+	print_params_parsed_full(ptr);
+
+	regfile_uninit();
+
+}
+
+int main(int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
-	test3();
+	//test_key_path(argc, argv);
+	test_recut_start(argc, argv);
+
+	fprintf(stderr, "Success\n");
 
 fclose(flog);
 	return 0;

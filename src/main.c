@@ -520,6 +520,8 @@ void mode_vk_init() {
 	printw("Value:\n");
 	param_print(param.value, param.type);
 
+	param_parsed_full_free(&param);
+
 	refresh();
 }
 

@@ -6,14 +6,20 @@
 #include "string_type.h"
 
 void string_free(string *p_str) {
+	assert((p_str->len == 0) == (p_str->str == NULL));
 	free((char *)p_str->str);
 	p_str->str = NULL;
 	p_str->len = 0;
 }
 
 string string_new_from_ansi(const uint8_t *in, size_t in_count) {
-	char *res_str = malloc(in_count);
-	memcpy(res_str, in, in_count);
+	char *res_str;
+	if (in_count != 0) {
+		res_str = malloc(in_count);
+		memcpy(res_str, in, in_count);
+	} else {
+		res_str = NULL;
+	}
 	string res = {.str = (const char *)res_str, .len = in_count};
 	return res;
 }
@@ -21,6 +27,7 @@ string string_new_from_ansi(const uint8_t *in, size_t in_count) {
 string string_new_from_unicode(const uint16_t *in, size_t in_count) {
 	char *res_str = NULL;
 	size_t res_size = 0;
+	if (in_count == 0) goto err;
 
 	iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
 	if (cd == (iconv_t)(-1)) goto err;

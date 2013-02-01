@@ -363,6 +363,8 @@ string_and_ptr_list string_and_ptr_list_new(unsigned int size) {
 }
 
 void string_and_ptr_list_free(string_and_ptr_list *p_list) {
+	assert(p_list != NULL);
+	assert((p_list->size == 0) == (p_list->entries == NULL));
 	unsigned int i;
 	for (i=0; i<p_list->size; ++i) {
 		string_free(&p_list->entries[i].str);
@@ -490,9 +492,13 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 		}
 		assert(brief_cur - brief == vk_value_brief_max_len - brief_rest);
 		res.len = brief_cur - brief;
-		res.str = malloc(res.len);
-		assert(res.str != NULL);
-		memcpy((char *)res.str, brief, res.len);
+		if (res.len != 0) {
+			res.str = malloc(res.len);
+			assert(res.str != NULL);
+			memcpy((char *)res.str, brief, res.len);
+		} else {
+			res.str = NULL;
+		}
 		free(brief);
 		break;
 	}
@@ -503,7 +509,7 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 		//assert(!(value_size & 1));
 		uint16_t *utf16_data = (uint16_t *)value_data;
 		unsigned int utf16_data_size = value_size >> 1;
-		if (utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
+		if (utf16_data_size > 0  && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
 #ifndef NDEBUG
 		else fprintf(flog, "regfile.c: param_get_value_brief: REG_SZ\n");
 #endif
@@ -575,7 +581,6 @@ struct str_list_entry_ {
 
 param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
 	param_value res;
-	if (value_size == 0) return res;
 	switch (vk_type) {
 	case REG_NONE:
 	case REG_BINARY:
@@ -583,6 +588,11 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 	case REG_FULL_RESOURCE_DESCRIPTOR:
 	case REG_RESOURCE_REQUIREMENTS_LIST:
 	default: {
+		if (value_size == 0) {
+			res.hex.data = NULL;
+			res.hex.size = 0;
+			break;
+		}
 		res.hex.size = value_size;
 		res.hex.data = malloc(res.hex.size);
 		assert(res.hex.data != NULL);
@@ -592,11 +602,16 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 	case REG_SZ:
 	case REG_EXPAND_SZ:
 	case REG_LINK: {
+		if (value_size == 0) {
+			res.str.str = NULL;
+			res.str.len = 0;
+			break;
+		}
 		// in "default" regfile may by "?? ?? .. .. ?? ?? 00 00 ??"
 		//assert(!(value_size & 1));
 		uint16_t *utf16_data = (uint16_t *)value_data;
 		unsigned int utf16_data_size = value_size >> 1;
-		if (utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
+		if (utf16_data_size > 0 && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
 #ifndef NDEBUG
 		else fprintf(flog, "regfile.c: param_block_get_value: REG_SZ\n");
 #endif
@@ -604,21 +619,39 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		break;
 	}
 	case REG_DWORD: {
+		if (value_size == 0) {
+			res.dword = 0;
+			break;
+		}
 		assert(value_size == 4);
 		res.dword = *((uint32_t *)value_data);
 		break;
 	}
 	case REG_DWORD_BIG_ENDIAN: {
+		if (value_size == 0) {
+			res.dword = 0;
+			break;
+		}
 		assert(value_size == 4);
 		res.dword = be32toh(*((uint32_t *)value_data));
 		break;
 	}
 	case REG_QWORD: {
+		if (value_size == 0) {
+			res.qword = 0;
+			break;
+		}
 		assert(value_size == 8);
 		res.qword = *((uint64_t *)value_data);
 		break;
 	}
 	case REG_MULTI_SZ: {
+		if (value_size == 0) {
+			res.multi_str.entries = NULL;
+			res.multi_str.size = 0;
+			break;
+		}
+
 		str_list_entry *list_first = NULL;
 		str_list_entry *list_last = NULL;
 
@@ -652,14 +685,19 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		}
 
 		res.multi_str.size = entries_count;
-		res.multi_str.entries = malloc(res.multi_str.size * sizeof(res.multi_str.entries[0]));
-		assert(res.multi_str.entries != NULL);
+		if (res.multi_str.size != 0) {
+			res.multi_str.entries = malloc(res.multi_str.size * sizeof(res.multi_str.entries[0]));
+			assert(res.multi_str.entries != NULL);
 
-		str_list_entry *list_entry = list_first;
-		for (i=0; i<entries_count; ++i) {
-			assert(list_entry != NULL);
-			res.multi_str.entries[i] = list_entry->str;
-			list_entry = list_entry->next;
+			str_list_entry *list_entry = list_first;
+			for (i=0; i<entries_count; ++i) {
+				assert(list_entry != NULL);
+				res.multi_str.entries[i] = list_entry->str;
+				list_entry = list_entry->next;
+			}
+
+		} else {
+			res.multi_str.entries = NULL;
 		}
 
 		// free str_list
@@ -681,6 +719,7 @@ typedef struct {
 } param_value_list;
 
 param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_type) {
+	assert((list.size != 0) && (list.entries != NULL));
 	param_value res;
 	switch (vk_type) {
 	case REG_NONE:
@@ -692,12 +731,14 @@ param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_
 		unsigned int i;
 		for (i=0; i<list.size; ++i)
 			res.hex.size += list.entries[i].hex.size;
+		assert(res.hex.size > 0);
 		res.hex.data = malloc(res.hex.size);
 		assert(res.hex.data != NULL);
 		uint8_t *dst = res.hex.data;
 		for (i=0; i<list.size; ++i) {
 			memcpy(dst, list.entries[i].hex.data, list.entries[i].hex.size);
 			dst += list.entries[i].hex.size;
+			assert(list.entries[i].hex.size > 0 || list.entries[i].hex.data == NULL);
 			free(list.entries[i].hex.data);
 		}
 		break;
@@ -708,6 +749,7 @@ param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_
 		unsigned int i;
 		for (i=0; i<list.size; ++i)
 			res.str.len += list.entries[i].str.len;
+		assert(res.str.len > 0);
 		res.str.str = malloc(res.str.len);
 		assert(res.str.str != NULL);
 		char *dst = (char *)res.str.str;
@@ -727,6 +769,7 @@ param_value param_values_list_merge_and_free(param_value_list list, uint32_t vk_
 		unsigned int i;
 		for (i=0; i<list.size; ++i)
 			res.multi_str.size += list.entries[i].multi_str.size;
+		assert(res.multi_str.size > 0);
 		res.multi_str.entries = malloc(res.multi_str.size);
 		assert(res.multi_str.entries != NULL);
 		unsigned int j, idx = 0;
@@ -751,6 +794,7 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 	case REG_FULL_RESOURCE_DESCRIPTOR:
 	case REG_RESOURCE_REQUIREMENTS_LIST:
 	default: {
+		assert((p_value->hex.size == 0) == (p_value->hex.data == NULL));
 		free(p_value->hex.data);
 		p_value->hex.data = NULL;
 		p_value->hex.size = 0;
@@ -767,6 +811,7 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 	case REG_QWORD:
 		break;
 	case REG_MULTI_SZ: {
+		assert((p_value->multi_str.size == 0) == (p_value->multi_str.entries == NULL));
 		unsigned int i;
 		for (i=0; i<p_value->multi_str.size; ++i)
 			string_free(&p_value->multi_str.entries[i]);
@@ -824,6 +869,7 @@ param_value vk_get_value(uint32_t ptr) {
 			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
 
 			param_value_list list = {.size = db->count_records};
+			assert(list.size != 0);
 			list.entries = malloc(list.size * sizeof(list.entries[0]));
 			assert(list.entries != NULL);
 
@@ -837,7 +883,6 @@ param_value vk_get_value(uint32_t ptr) {
 			}
 
 			return param_values_list_merge_and_free(list, s->param_type);
-
 		}
 	} else {
 		return param_block_get_value((uint8_t *)&(s->ptr_param_value), s->size_param_value & ~0x80000000, s->param_type);
@@ -845,6 +890,7 @@ param_value vk_get_value(uint32_t ptr) {
 }
 
 void param_parsed_full_free(param_parsed_full *p_param) {
+	assert(p_param != NULL);
 	param_parsed_full param = *p_param;
 	string_free(&p_param->name);
 	string_free(&p_param->type_str);
@@ -895,6 +941,8 @@ string_and_ptr_list nk_get_params_names_list(uint32_t ptr) {
 }
 
 void params_parsed_list_free(params_parsed_list *p_list) {
+	assert(p_list != NULL);
+	assert((p_list->size == 0) == (p_list->entries == NULL));
 	unsigned int i;
 	for (i=0; i<p_list->size; ++i) {
 		string_free(&p_list->entries[i].name);
@@ -917,6 +965,7 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 	index_struct *index_params =
 			index_init(s->ptr_params_index, count_index_records);
 	params_parsed_list list = {.size = count_index_records};
+	assert (list.size > 0);
 	list.entries = malloc(list.size * sizeof(list.entries[0]));
 	assert(list.entries != NULL);
 
@@ -947,6 +996,8 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 /* ****************** */
 
 void string_list_free(string_list *p_list) {
+	assert(p_list != NULL);
+	assert((p_list->size == 0) == (p_list->entries == NULL));
 	unsigned int i;
 	for (i=0; i<p_list->size; ++i) {
 		string_free(&p_list->entries[i]);
@@ -978,14 +1029,18 @@ string_list nk_get_path_list(uint32_t ptr) {
 
 	string_list list;
 	list.size = entries_count;
-	list.entries = malloc(list.size * sizeof(list.entries[0]));
-	assert(list.entries != NULL);
+	if (list.size != 0) {
+		list.entries = malloc(list.size * sizeof(list.entries[0]));
+		assert(list.entries != NULL);
 
-	ptr_list_entry *entry = ptr_list;
-	unsigned int i;
-	for (i=0; i<entries_count; ++i) {
-		list.entries[i] = nk_get_name(entry->ptr);
-		entry = entry->next;
+		ptr_list_entry *entry = ptr_list;
+		unsigned int i;
+		for (i=0; i<entries_count; ++i) {
+			list.entries[i] = nk_get_name(entry->ptr);
+			entry = entry->next;
+		}
+	} else {
+		list.entries = NULL;
 	}
 
 	// free ptr_list
