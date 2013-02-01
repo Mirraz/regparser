@@ -509,10 +509,8 @@ string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t 
 		//assert(!(value_size & 1));
 		uint16_t *utf16_data = (uint16_t *)value_data;
 		unsigned int utf16_data_size = value_size >> 1;
-		if (utf16_data_size > 0  && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
-#ifndef NDEBUG
-		else fprintf(flog, "regfile.c: param_get_value_brief: REG_SZ\n");
-#endif
+		// in "system", "software" regfiles may not be
+		if (utf16_data_size > 0 && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
 		res = string_new_from_unicode(utf16_data,
 				MIN(utf16_data_size, vk_value_brief_max_len >> 1));
 		break;
@@ -611,10 +609,8 @@ param_value param_block_get_value(uint8_t *value_data, uint32_t value_size, uint
 		//assert(!(value_size & 1));
 		uint16_t *utf16_data = (uint16_t *)value_data;
 		unsigned int utf16_data_size = value_size >> 1;
+		// in "system", "software" regfiles may not be
 		if (utf16_data_size > 0 && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
-#ifndef NDEBUG
-		else fprintf(flog, "regfile.c: param_block_get_value: REG_SZ\n");
-#endif
 		res.str = string_new_from_unicode(utf16_data, utf16_data_size);
 		break;
 	}
@@ -835,7 +831,7 @@ string vk_get_value_brief(uint32_t ptr) {
 					value_init(s->ptr_param_value, s->size_param_value);
 			return param_get_value_brief(param_value->value, s->size_param_value, s->param_type);
 		} else {
-			// db
+			// db (in "system" regfile)
 			db_struct *db = db_init(s->ptr_param_value);
 			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
 			// only first block for brief
@@ -864,7 +860,7 @@ param_value vk_get_value(uint32_t ptr) {
 					value_init(s->ptr_param_value, s->size_param_value);
 			return param_block_get_value(param_value->value, s->size_param_value, s->param_type);
 		} else {
-			// db
+			// db (in "system" regfile)
 			db_struct *db = db_init(s->ptr_param_value);
 			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
 
