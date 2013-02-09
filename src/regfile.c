@@ -131,7 +131,7 @@ nk_struct *nk_init(uint32_t ptr) {
 	assert_check1(check_block_size());
 
 	assert_check1(nk_struct_size + s->size_key_name <= abs(s->size));
-	/* if key_name is in unicode, then size_key_name must be even */
+	// if key_name is in unicode, then size_key_name must be even
 	assert_check1( (s->flag & 0x20) || (s->size_key_name & 1) == 0);
 	assert_check1(check_size(s->size_key_class));
 
@@ -283,7 +283,7 @@ string nk_get_name(uint32_t ptr) {
 	return name;
 }
 
-void nk_childs_index_process(uint32_t ptr_chinds_index,
+int nk_childs_index_process(uint32_t ptr_chinds_index,
 			int (*callback)(uint32_t, void *), void *callback_data) {
 	assert(ptr_not_null(ptr_chinds_index));
 	signature_struct *sig = signature_init(ptr_chinds_index);
@@ -292,7 +292,7 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 		lf_struct *lf = lf_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<lf->count_records; ++i) {
-			if (callback(lf->records[i].ptr_nk, callback_data)) return;
+			if (callback(lf->records[i].ptr_nk, callback_data)) return 1;
 		}
 		break;
 	}
@@ -300,7 +300,7 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 		lh_struct *lh = lh_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<lh->count_records; ++i) {
-			if (callback(lh->records[i].ptr_nk, callback_data)) return;
+			if (callback(lh->records[i].ptr_nk, callback_data)) return 1;
 		}
 		break;
 	}
@@ -313,7 +313,7 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 		ri_struct *ri = ri_init(ptr_chinds_index);
 		unsigned int i;
 		for (i=0; i<ri->count_records; ++i) {
-			nk_childs_index_process(ri->ptr_indexes[i], callback, callback_data);
+			if (nk_childs_index_process(ri->ptr_indexes[i], callback, callback_data)) return 1;
 		}
 		break;
 	}
@@ -323,13 +323,15 @@ void nk_childs_index_process(uint32_t ptr_chinds_index,
 		break;
 	}
 	}
+	return 0;
 }
 
-void nk_childs_process(uint32_t ptr,
+int nk_childs_process(uint32_t ptr,
 		int (*callback)(uint32_t, void *), void *callback_data) {
 	nk_struct *nk = nk_init(ptr);
-	if (ptr_is_null(nk->ptr_chinds_index)) return;
-	return nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data);
+	if (ptr_is_null(nk->ptr_chinds_index)) return 1;
+	if (nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data)) return 1;
+	return 0;
 }
 
 int child_print_name(uint32_t ptr, void *data) {

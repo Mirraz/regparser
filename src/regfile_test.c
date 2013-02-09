@@ -7,7 +7,7 @@
 
 FILE *flog;
 
-void test1_1(uint32_t ptr) {
+void print_childs(uint32_t ptr) {
 	string_and_ptr_list list = nk_get_childs_list(ptr);
 	unsigned int i;
 	for (i=0; i<list.size; ++i) {
@@ -19,7 +19,7 @@ void test1_1(uint32_t ptr) {
 void test1() {
 	uint32_t ptr = regfile_init("NTUSER.DAT");
 
-	test1_1(ptr);
+	print_childs(ptr);
 
 	regfile_uninit();
 }
@@ -229,28 +229,35 @@ void test_recut_start(int argc, char **argv) {
 	regfile_uninit();
 }
 
-void test_key_path(int argc, char **argv) {
-	assert(argc == 3);
-
-	uint32_t ptr = regfile_init(argv[1]);
-	if (ptr == ptr_null) return;
-
-	char *path = argv[2];
-
+uint32_t change_path(uint32_t ptr, const char *path) {
 	do {
 		char *end = strchrnul(path, '/');
 		string item = {.str = path, .len = end - path};
 		if (item.len != 0) {
 
 			ptr = nk_find_child(ptr, item);
-			if (ptr == ptr_null) return;
+			if (ptr == ptr_null) return ptr_null;
 
 		}
 		if (*end == '\0') break;
 		path = end + 1;
 	} while(1);
+	return ptr;
+}
+
+void test_key_path(int argc, char **argv) {
+	assert(argc == 3);
+
+	uint32_t ptr = regfile_init(argv[1]);
+	if (ptr == ptr_null) return;
+
+	ptr = change_path(ptr, argv[2]);
+	if (ptr == ptr_null) {printf("keypath not found\n"); return;}
 
 	print_path(ptr); printf("\n");
+	printf("~~~~~~~~~~\n");
+	print_childs(ptr);
+	printf("~~~~~~~~~~\n");
 	print_params_parsed_full(ptr);
 
 	regfile_uninit();
@@ -260,10 +267,10 @@ void test_key_path(int argc, char **argv) {
 int main(int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
-	//test_key_path(argc, argv);
-	test_recut_start(argc, argv);
+	test_key_path(argc, argv);
+	//test_recut_start(argc, argv);
 
-	fprintf(stderr, "Success\n");
+	fprintf(stdout, "Success\n");
 
 fclose(flog);
 	return 0;
