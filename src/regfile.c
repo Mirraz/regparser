@@ -38,6 +38,7 @@ uint8_t *data = NULL;
 
 unsigned int vk_value_brief_max_len = 128;
 
+DELKEY_MODE delkey_mode = DELKEY_MODE_DISABLE;
 childmap *delkeytree = NULL;
 
 /* ********************************** */
@@ -351,15 +352,19 @@ int nk_childs_index_process(uint32_t ptr_chinds_index,
 	return 0;
 }
 
-int nkdel_childs_process(uint32_t ptr,
+int delkey_nk_childs_process(uint32_t ptr,
 			int (*callback)(uint32_t, void *), void *callback_data);
 
 int nk_childs_process(uint32_t ptr,
 		int (*callback)(uint32_t, void *), void *callback_data) {
 	nk_struct *nk = nk_init(ptr);
 	if (ptr_is_null(nk->ptr_chinds_index)) return 1;
-	if (nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data)) return 1;
-	if (nkdel_childs_process(ptr, callback, callback_data)) return 1;
+	if (delkey_mode != DELKEY_MODE_ONLY_DEL) {
+		if (nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data)) return 1;
+	}
+	if (delkey_mode != DELKEY_MODE_DISABLE) {
+		if (delkey_nk_childs_process(ptr, callback, callback_data)) return 1;
+	}
 	return 0;
 }
 
@@ -987,6 +992,11 @@ params_parsed_list nk_get_params_parsed_list(uint32_t ptr) {
 		params_parsed_list list = {.entries = NULL, .size = 0};
 		return list;
 	}
+	if (delkey_mode == DELKEY_MODE_ONLY_DEL && s->size < 0) {
+		//don't show params for USED keys
+		params_parsed_list list = {.entries = NULL, .size = 0};
+		return list;
+	}
 
 	unsigned int count_index_records = s->count_params;
 	index_struct *index_params =
@@ -1095,7 +1105,8 @@ void delkeytree_add(uint32_t ptr_parent, uint32_t ptr_child) {
 	childset *childset_member = NULL;
 	int res = sglib_childset_add_if_not_member(
 			&(childmap_node->val.childs), childset_node, &childset_member);
-	assert(res != 0 && childset_member == NULL);	// no duplicates
+	// no duplicates
+	assert(delkey_mode != DELKEY_MODE_MIX || (res != 0 && childset_member == NULL));
 }
 
 void delkeytree_print() {
@@ -1113,7 +1124,7 @@ void delkeytree_print() {
 	}
 }
 
-int nkdel_childs_process(uint32_t ptr,
+int delkey_nk_childs_process(uint32_t ptr,
 			int (*callback)(uint32_t, void *), void *callback_data) {
 	childmap entry = {.val = {.parent = ptr}};
 	childmap *childmap_member = sglib_childmap_find_member(delkeytree, &entry);
@@ -1128,11 +1139,12 @@ int nkdel_childs_process(uint32_t ptr,
 	return 0;
 }
 
-void nkdel_delkeytree_add(uint32_t ptr) {
+void delkey_nk_add(uint32_t ptr) {
 	do {
 		nk_struct *s = nk_init_check(ptr);
 		if (s == NULL) break;
-		if (s->size < 0) break;		// don't add USED keys
+		// don't add USED keys (in mix mode)
+		if (s->size < 0 && delkey_mode == DELKEY_MODE_MIX) break;
 
 		delkeytree_add(s->ptr_parent, ptr);
 
@@ -1141,7 +1153,7 @@ void nkdel_delkeytree_add(uint32_t ptr) {
 	} while (1);
 }
 
-void scan_blocks() {
+void delkey_scan_blocks() {
 	uint32_t ptr_segm = 0;
 	do {
 		hbin_struct *hbin = hbin_init(ptr_segm);
@@ -1154,7 +1166,7 @@ void scan_blocks() {
 					signature_struct *sig_block = (signature_struct *)block;
 					switch (sig_block->signature) {
 					case nk_signature:
-						nkdel_delkeytree_add(ptr_block);
+						delkey_nk_add(ptr_block);
 						break;
 					case vk_signature:
 					case sk_signature:
@@ -1178,4 +1190,9 @@ void scan_blocks() {
 		ptr_segm += hbin->size_segment;
 	} while(ptr_segm < header->size_data_area);
 	assert(ptr_segm == header->size_data_area);
+}
+
+void delkey_init(DELKEY_MODE mode) {
+	delkey_mode = mode;
+	if (mode != DELKEY_MODE_DISABLE) delkey_scan_blocks();
 }

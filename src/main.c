@@ -4,6 +4,7 @@
 #include <string.h>
 #include <memory.h>
 #include <assert.h>
+#include <getopt.h>
 
 #include <locale.h>
 #include <ncurses.h>
@@ -543,15 +544,63 @@ int mode_vk_ch(int ch) {
 
 /* ****************** */
 
-int main(int argc, char **argv) {
-flog = fopen("/tmp/debug.log", "w");
+void usage(const char *prog_name) {
+	fprintf(stderr,
+			"Usage: %s [keys] <regfile path>\n"
+			"Keys:\n"
+			"-h, --help\n"
+			"	show this help and exit\n"
+			"-s, --show-deleted\n"
+			"	show deleted keys\n"
+			"-d, --only-deleted\n"
+			"	show only deleted keys\n"
+			, prog_name);
+}
 
-	if (argc != 2) {fprintf(stderr, "Usage: %s <regfile path>\n", argv[0]); return 1;}
-	uint32_t ptr_root_nk = regfile_init(argv[1]);
-	if (ptr_root_nk == ptr_null) return 1;
-	scan_blocks();
+int main(int argc, char **argv) {
+flog = stdout; //fopen("/tmp/debug.log", "w");
 
 	setlocale(LC_CTYPE, "");
+
+	const char *regfile_path = NULL;
+	DELKEY_MODE delkey_mode = DELKEY_MODE_DISABLE;
+
+	static const struct option long_options[] = {
+		{"help",         no_argument, NULL, 'h'},
+		{"show-deleted", no_argument, NULL, 's'},
+		{"only-deleted", no_argument, NULL, 'd'},
+		{0, 0, 0, 0}
+	};
+	static const char short_options[] = "hsd";
+	do {
+		int option_index = 0;
+		int c = getopt_long(argc, argv, short_options, long_options, &option_index);
+		if (c == -1) break;
+		switch (c) {
+		case 's':
+			delkey_mode = DELKEY_MODE_MIX;
+			break;
+		case 'd':
+			delkey_mode = DELKEY_MODE_ONLY_DEL;
+			break;
+		case 'h':
+			usage(argv[0]);
+			return 0;
+		case '?':
+		default:
+			usage(argv[0]);
+			return 1;
+		}
+	} while (1);
+	if (argc != optind + 1) {
+		usage(argv[0]);
+		return 1;
+	}
+	regfile_path = argv[optind];
+
+	uint32_t ptr_root_nk = regfile_init(regfile_path);
+	if (ptr_root_nk == ptr_null) return 1;
+	delkey_init(delkey_mode);
 
 	initscr();
 	cbreak();
@@ -573,7 +622,7 @@ flog = fopen("/tmp/debug.log", "w");
 	regfile_uninit();
 
 	endwin();
-	
-fclose(flog);
+
+//fclose(flog);
 	return 0;
 }

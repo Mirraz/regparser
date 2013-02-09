@@ -91,7 +91,12 @@ param_parsed_full vk_get_parsed(uint32_t ptr);
 void string_list_free(string_list *p_list);
 string_list nk_get_path_list(uint32_t ptr);
 
-void scan_blocks();
-void delkeytree_print();
+typedef enum {
+	DELKEY_MODE_DISABLE,
+	DELKEY_MODE_ONLY_DEL,
+	DELKEY_MODE_MIX
+} DELKEY_MODE;
+
+void delkey_init(DELKEY_MODE mode);
 
 #endif /* REGFILE_H_ */
