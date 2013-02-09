@@ -91,4 +91,7 @@ param_parsed_full vk_get_parsed(uint32_t ptr);
 void string_list_free(string_list *p_list);
 string_list nk_get_path_list(uint32_t ptr);
 
+void scan_blocks();
+void delkeytree_print();
+
 #endif /* REGFILE_H_ */

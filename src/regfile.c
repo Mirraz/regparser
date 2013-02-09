@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "string_type.h"
 #include "rbtree.h"
+#include "childmap.h"
 #include "parse_common.h"
 #include "regfile_declare.h"
 #include "regfile.h"
@@ -36,6 +37,8 @@ regf_struct *header = &header_data;
 uint8_t *data = NULL;
 
 unsigned int vk_value_brief_max_len = 128;
+
+childmap *delkeytree = NULL;
 
 /* ********************************** */
 
@@ -140,6 +143,28 @@ nk_struct *nk_init(uint32_t ptr) {
 	assert_check1(check_ptr(s->ptr_params_index));
 	assert_check1(check_ptr(s->ptr_sk));
 	assert_check1(check_ptr(s->ptr_class_name));
+
+	return s;
+}
+
+nk_struct *nk_init_check(uint32_t ptr) {
+	assert_check2(check_block_ptr());
+	nk_struct *s = (nk_struct *)(data + ptr);
+	if (s->size < 0) return nk_init(ptr);
+
+	if (!check_signatire(nk)) return  NULL;
+	if (!check_block_size()) return NULL;
+
+	if (!( nk_struct_size + s->size_key_name <= abs(s->size) )) return NULL;
+	// if key_name is in unicode, then size_key_name must be even
+	if (!( (s->flag & 0x20) || (s->size_key_name & 1) == 0 )) return NULL;
+	if (!check_size(s->size_key_class)) return NULL;
+
+	if (!check_ptr(s->ptr_parent)) return NULL;
+	if (!check_ptr(s->ptr_chinds_index)) return NULL;
+	if (!check_ptr(s->ptr_params_index)) return NULL;
+	if (!check_ptr(s->ptr_sk)) return NULL;
+	if (!check_ptr(s->ptr_class_name)) return NULL;
 
 	return s;
 }
@@ -326,11 +351,15 @@ int nk_childs_index_process(uint32_t ptr_chinds_index,
 	return 0;
 }
 
+int nkdel_childs_process(uint32_t ptr,
+			int (*callback)(uint32_t, void *), void *callback_data);
+
 int nk_childs_process(uint32_t ptr,
 		int (*callback)(uint32_t, void *), void *callback_data) {
 	nk_struct *nk = nk_init(ptr);
 	if (ptr_is_null(nk->ptr_chinds_index)) return 1;
 	if (nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data)) return 1;
+	if (nkdel_childs_process(ptr, callback, callback_data)) return 1;
 	return 0;
 }
 
@@ -1051,4 +1080,102 @@ string_list nk_get_path_list(uint32_t ptr) {
 	return list;
 }
 
-/* ****************** */
+/* ********************************** */
+
+void delkeytree_add(uint32_t ptr_parent, uint32_t ptr_child) {
+	childmap *childmap_node = sglib_childmap_node_new(ptr_parent);
+	childmap *childmap_member = NULL;
+	if (! sglib_childmap_add_if_not_member(&delkeytree, childmap_node, &childmap_member)) {
+		sglib_childmap_node_free(childmap_node);
+		assert(childmap_member != NULL);
+		childmap_node = childmap_member;
+	}
+
+	childset *childset_node = sglib_childset_node_new(ptr_child);
+	childset *childset_member = NULL;
+	int res = sglib_childset_add_if_not_member(
+			&(childmap_node->val.childs), childset_node, &childset_member);
+	assert(res != 0 && childset_member == NULL);	// no duplicates
+}
+
+void delkeytree_print() {
+	childmap *tree = delkeytree;
+	childmap *te;
+	struct sglib_childmap_iterator it;
+	for(te=sglib_childmap_it_init(&it,tree); te!=NULL; te=sglib_childmap_it_next(&it)) {
+		printf("parent = %08X\n", te->val.parent);
+		childset *tree_ = te->val.childs;
+		childset *te_;
+		struct sglib_childset_iterator it_;
+		for(te_=sglib_childset_it_init(&it_,tree_); te_!=NULL; te_=sglib_childset_it_next(&it_)) {
+			printf("child = %08X\n", te_->val);
+		}
+	}
+}
+
+int nkdel_childs_process(uint32_t ptr,
+			int (*callback)(uint32_t, void *), void *callback_data) {
+	childmap entry = {.val = {.parent = ptr}};
+	childmap *childmap_member = sglib_childmap_find_member(delkeytree, &entry);
+	if (childmap_member == NULL) return 1;
+
+	childset *tree = childmap_member->val.childs;
+	childset *te;
+	struct sglib_childset_iterator it;
+	for(te=sglib_childset_it_init(&it,tree); te!=NULL; te=sglib_childset_it_next(&it)) {
+		if (callback(te->val, callback_data)) return 1;
+	}
+	return 0;
+}
+
+void nkdel_delkeytree_add(uint32_t ptr) {
+	do {
+		nk_struct *s = nk_init_check(ptr);
+		if (s == NULL) break;
+		if (s->size < 0) break;		// don't add USED keys
+
+		delkeytree_add(s->ptr_parent, ptr);
+
+		if (header->ptr_root_nk == ptr) break;
+		ptr = s->ptr_parent;
+	} while (1);
+}
+
+void scan_blocks() {
+	uint32_t ptr_segm = 0;
+	do {
+		hbin_struct *hbin = hbin_init(ptr_segm);
+		uint32_t ptr_block = ptr_segm + hbin_struct_size;
+		do {
+			value_struct *block = (value_struct *)(data + ptr_block);
+			uint32_t block_size = abs(block->size);
+			if (block->size > 0) {	// FREE
+				if (block_size >= 6) {
+					signature_struct *sig_block = (signature_struct *)block;
+					switch (sig_block->signature) {
+					case nk_signature:
+						nkdel_delkeytree_add(ptr_block);
+						break;
+					case vk_signature:
+					case sk_signature:
+					case lf_signature:
+					case lh_signature:
+					case li_signature:
+					case ri_signature:
+					case db_signature:
+						break;
+					default:
+						// not sig
+						break;
+					}
+				} else {
+					// too small for sig
+				}
+			}
+			ptr_block += block_size;
+		} while (ptr_block < ptr_segm + hbin->size_segment);
+		assert(ptr_block == ptr_segm + hbin->size_segment);
+		ptr_segm += hbin->size_segment;
+	} while(ptr_segm < header->size_data_area);
+	assert(ptr_segm == header->size_data_area);
+}

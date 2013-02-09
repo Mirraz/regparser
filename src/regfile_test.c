@@ -251,6 +251,8 @@ void test_key_path(int argc, char **argv) {
 	uint32_t ptr = regfile_init(argv[1]);
 	if (ptr == ptr_null) return;
 
+	scan_blocks();
+
 	ptr = change_path(ptr, argv[2]);
 	if (ptr == ptr_null) {printf("keypath not found\n"); return;}
 

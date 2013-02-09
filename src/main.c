@@ -549,6 +549,7 @@ flog = fopen("/tmp/debug.log", "w");
 	if (argc != 2) {fprintf(stderr, "Usage: %s <regfile path>\n", argv[0]); return 1;}
 	uint32_t ptr_root_nk = regfile_init(argv[1]);
 	if (ptr_root_nk == ptr_null) return 1;
+	scan_blocks();
 
 	setlocale(LC_CTYPE, "");
 
