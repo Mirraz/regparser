@@ -51,9 +51,9 @@ typedef struct {
 	uint64_t time_creation;
 	uint32_t stuff1;
 	uint32_t ptr_parent;
-	uint32_t count_chinds;
+	uint32_t count_childs;
 	uint32_t stuff2;
-	uint32_t ptr_chinds_index;
+	uint32_t ptr_childs_index;
 	uint32_t stuff3;
 	uint32_t count_params;
 	uint32_t ptr_params_index;

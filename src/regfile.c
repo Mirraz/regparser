@@ -140,7 +140,7 @@ nk_struct *nk_init(uint32_t ptr) {
 	assert_check1(check_size(s->size_key_class));
 
 	assert_check1(check_ptr(s->ptr_parent));
-	assert_check1(check_ptr(s->ptr_chinds_index));
+	assert_check1(check_ptr(s->ptr_childs_index));
 	assert_check1(check_ptr(s->ptr_params_index));
 	assert_check1(check_ptr(s->ptr_sk));
 	assert_check1(check_ptr(s->ptr_class_name));
@@ -162,7 +162,7 @@ nk_struct *nk_init_check(uint32_t ptr) {
 	if (!check_size(s->size_key_class)) return NULL;
 
 	if (!check_ptr(s->ptr_parent)) return NULL;
-	if (!check_ptr(s->ptr_chinds_index)) return NULL;
+	if (!check_ptr(s->ptr_childs_index)) return NULL;
 	if (!check_ptr(s->ptr_params_index)) return NULL;
 	if (!check_ptr(s->ptr_sk)) return NULL;
 	if (!check_ptr(s->ptr_class_name)) return NULL;
@@ -358,9 +358,9 @@ int delkey_nk_childs_process(uint32_t ptr,
 int nk_childs_process(uint32_t ptr,
 		int (*callback)(uint32_t, void *), void *callback_data) {
 	nk_struct *nk = nk_init(ptr);
-	if (ptr_is_null(nk->ptr_chinds_index)) return 1;
+	if (ptr_is_null(nk->ptr_childs_index)) return 1;
 	if (delkey_mode != DELKEY_MODE_ONLY_DEL) {
-		if (nk_childs_index_process(nk->ptr_chinds_index, callback, callback_data)) return 1;
+		if (nk_childs_index_process(nk->ptr_childs_index, callback, callback_data)) return 1;
 	}
 	if (delkey_mode != DELKEY_MODE_DISABLE) {
 		if (delkey_nk_childs_process(ptr, callback, callback_data)) return 1;
