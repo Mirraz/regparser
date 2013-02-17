@@ -24,7 +24,7 @@ struct {
 	struct {
 		WINDOW *pwd;
 		WINDOW *childs;
-		WINDOW *key_stats;
+		WINDOW *stats;
 		WINDOW *params;
 	} wins;
 	struct {
@@ -119,7 +119,7 @@ int modes_ch(int ch) {
 void widg_main_init() {
 	widg_main.wins.pwd = newwin(1, 2, 1, 1);
 	widg_main.wins.childs = newwin(widg_stats_height + 2, 1, 3, 1);
-	widg_main.wins.key_stats = newwin(widg_stats_height, 1, 3, 3);
+	widg_main.wins.stats = newwin(widg_stats_height, 1, 3, 3);
 	widg_main.wins.params = newwin(1, 1, widg_stats_height + 4, 3);
 }
 
@@ -143,13 +143,13 @@ void widg_main_update() {
 	);
 	wnoutrefresh(widg_main.wins.childs);
 
-	mvwin(widg_main.wins.key_stats, 3, widg_childs_width + 2);
+	mvwin(widg_main.wins.stats, 3, widg_childs_width + 2);
 	wresize(
-		widg_main.wins.key_stats,
+		widg_main.wins.stats,
 		widg_stats_height,
 		widg_params_width
 	);
-	wnoutrefresh(widg_main.wins.key_stats);
+	wnoutrefresh(widg_main.wins.stats);
 
 	mvwin(widg_main.wins.params, widg_stats_height + 4, widg_childs_width + 2);
 	wresize(
@@ -185,6 +185,7 @@ void widg_main_update() {
 void widg_childs_ch(int ch);
 void widg_params_ch(int ch);
 void widg_pwd_ch(int ch);
+void widg_stats_ch(int ch);
 
 int widg_main_ch(int ch) {
 	//fprintf(flog, "[%u]\n", ch); fflush(flog);
@@ -198,11 +199,13 @@ int widg_main_ch(int ch) {
 		widg_childs_ch(ch);
 		widg_params_ch(ch);
 		widg_pwd_ch(ch);
+		widg_stats_ch(ch);
 		break;
 	case KEY_NK_CHANGE:
 		widg_childs_ch(ch);
 		widg_params_ch(ch);
 		widg_pwd_ch(ch);
+		widg_stats_ch(ch);
 		break;
 	default:
 		switch (state.current_widget) {
@@ -458,6 +461,41 @@ void widg_pwd_ch(int ch) {
 	case KEY_NK_CHANGE:
 	case KEY_RESIZE:
 		widg_pwd_init();
+		break;
+	default:
+		assert(0);
+		break;
+	}
+}
+
+/* ****************** */
+
+void widg_stats_init() {
+	wclear(widg_main.wins.stats);
+	wmove(widg_main.wins.stats, 0, 0);
+
+	nk_stats stats = nk_get_stats(state.ptr_nk_current);
+
+	wprintw(widg_main.wins.stats, "childs count: %u\n", stats.count_childs);
+	wprintw(widg_main.wins.stats, "params count: %u\n", stats.count_params);
+
+	wprintw(widg_main.wins.stats, "class name: ");
+	wprintw(widg_main.wins.stats, "%.*s", stats.class_name.len, stats.class_name.str);
+	wprintw(widg_main.wins.stats, "\n");
+
+	wprintw(widg_main.wins.stats, "creation time: %016llX\n", (unsigned long long int)stats.time_creation);
+	wprintw(widg_main.wins.stats, "self ptr: %08X\n", stats.ptr_self);
+
+	nk_stats_free(&stats);
+	wrefresh(widg_main.wins.stats);
+
+}
+
+void widg_stats_ch(int ch) {
+	switch(ch) {
+	case KEY_NK_CHANGE:
+	case KEY_RESIZE:
+		widg_stats_init();
 		break;
 	default:
 		assert(0);
