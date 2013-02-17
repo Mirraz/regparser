@@ -5,6 +5,7 @@
 #include <endian.h>
 #include <string.h>
 #include <memory.h>
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1107,11 +1108,30 @@ string_list nk_get_path_list(uint32_t ptr) {
 
 /* ****************** */
 
+#define WIN_TIME_OFFSET ((int64_t)(369 * 365 + 89) * 24 * 3600 * 10000000)
+inline time_t win_time_to_utc(int64_t win_time) {
+	if (win_time == 0) return 0;
+	return (win_time - (WIN_TIME_OFFSET)) / 10000000;
+}
+
+string win_time_to_string(uint64_t win_time) {
+	time_t time = win_time_to_utc(win_time);
+	struct tm *tm = gmtime(&time);
+	assert(tm != NULL);
+#define str_size 256
+	char str[str_size];
+	size_t res_len = strftime(str, str_size-1, "%d.%m.%Y %H:%M:%S", tm);
+#undef str_size
+	assert(res_len != 0);
+	string res = string_new_from_ansi((uint8_t *)str, res_len);
+	return res;
+}
+
 void nk_stats_free(nk_stats *p_stats) {
 	p_stats->count_childs = 0;
 	p_stats->count_params = 0;
 	string_free(&p_stats->class_name);
-	p_stats->time_creation = 0;
+	string_free(&p_stats->time_creation);
 	p_stats->ptr_self = ptr_null;
 }
 
@@ -1120,10 +1140,10 @@ nk_stats nk_get_stats(uint32_t ptr) {
 	nk_stats res = {
 			.count_childs = s->count_childs,
 			.count_params = s->count_params,
-			.time_creation = s->time_creation,
 			.ptr_self = ptr
 	};
 	res.class_name = nk_get_class(ptr);
+	res.time_creation = win_time_to_string(s->time_creation);
 	return res;
 }
 

@@ -95,7 +95,7 @@ typedef struct {
 	uint32_t count_childs;
 	uint32_t count_params;
 	string class_name;
-	uint64_t time_creation;
+	string time_creation;
 	uint32_t ptr_self;
 } nk_stats;
 

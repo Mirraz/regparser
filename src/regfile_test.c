@@ -201,11 +201,11 @@ void print_path(uint32_t ptr) {
 void print_stats(uint32_t ptr) {
 	nk_stats stats = nk_get_stats(ptr);
 
-	printf("childs count = %u\n", stats.count_childs);
-	printf("params count = %u\n", stats.count_params);
-	printf("class name = "); string_print(stats.class_name); printf("\n");
-	printf("creation time = %016llX\n", (unsigned long long int)stats.time_creation);
-	printf("self ptr = %08X\n", stats.ptr_self);
+	printf("childs count: %u\n", stats.count_childs);
+	printf("params count: %u\n", stats.count_params);
+	printf("class name: "); string_print(stats.class_name); printf("\n");
+	printf("creation time: "); string_print(stats.time_creation); printf("\n");
+	printf("self ptr: %08X\n", stats.ptr_self);
 
 	nk_stats_free(&stats);
 }

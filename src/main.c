@@ -483,7 +483,10 @@ void widg_stats_init() {
 	wprintw(widg_main.wins.stats, "%.*s", stats.class_name.len, stats.class_name.str);
 	wprintw(widg_main.wins.stats, "\n");
 
-	wprintw(widg_main.wins.stats, "creation time: %016llX\n", (unsigned long long int)stats.time_creation);
+	wprintw(widg_main.wins.stats, "creation time: ");
+	wprintw(widg_main.wins.stats, "%.*s", stats.time_creation.len,  stats.time_creation.str);
+	wprintw(widg_main.wins.stats, "\n");
+
 	wprintw(widg_main.wins.stats, "self ptr: %08X\n", stats.ptr_self);
 
 	nk_stats_free(&stats);
