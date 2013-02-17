@@ -32,6 +32,8 @@
 
 static const param_type_desc_struct param_type_desc[] = param_type_desc_value;
 static const param_type_desc_struct param_type_reg[] = param_type_reg_value;
+static const char * const hive_filename[] = hive_filename_value;
+static const char * const hive_keypath[] = hive_keypath_value;
 
 int fd = -1;
 static regf_struct header_data;
@@ -43,10 +45,23 @@ unsigned int vk_value_brief_max_len = 128;
 DELKEY_MODE delkey_mode = DELKEY_MODE_DISABLE;
 childmap *delkeytree = NULL;
 
+hive_enum hive = HIVE_UNKNOWN;
+
 /* ********************************** */
 
 void structs_check_size();
 regf_struct *regf_init(regf_struct *s);
+
+void define_hive(const char *regfile_path) {
+	const char *name = strrchr(regfile_path, '/');
+	if (name == NULL) name = regfile_path;
+	else ++name;
+	unsigned int i;
+	for (i=0; i<hives_count; ++i) {
+		if (strcasecmp(name, hive_filename[i]) == 0) break;
+	}
+	hive = i;
+}
 
 uint32_t regfile_init(const char *regfile_path) {
 	structs_check_size();
@@ -62,6 +77,8 @@ uint32_t regfile_init(const char *regfile_path) {
 	data = mmap(NULL, header->size_data_area,
 			PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, regf_header_size);
 	if (data == MAP_FAILED) {perror("mmap"); return ptr_null;}
+
+	define_hive(regfile_path);
 
 	return header->ptr_root_nk;
 }
@@ -1352,6 +1369,7 @@ void fprint_reg_header(FILE *fout) {
 void nk_fprint_reg(FILE *fout, uint32_t ptr) {
 	fprintf(fout, "\n[");
 	// print path
+	fprintf(fout, "%s", hive_keypath[hive]);
 	string_list path = nk_get_path_list(ptr);
 	unsigned int i;
 	for (i=1; i<path.size; ++i) {

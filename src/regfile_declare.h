@@ -232,6 +232,39 @@ typedef struct {
 		{-1, "hex"} \
 }
 
+typedef enum {
+	HIVE_NTUSER = 0,
+	HIVE_SAM = 1,
+	HIVE_SECURITY = 2,
+	HIVE_SOFTWARE = 3,
+	HIVE_SYSTEM = 4,
+	HIVE_DEFAULT = 5,
+	HIVE_USERDIFF = 6,
+	HIVE_UNKNOWN = 7
+} hive_enum;
+#define hives_count 7
+
+#define hive_filename_value { \
+		"NTUSER.DAT", \
+		"SAM", \
+		"SECURITY", \
+		"SOFTWARE", \
+		"SYSTEM", \
+		"DEFAULT", \
+		"USERDIFF" \
+}
+
+#define hive_keypath_value { \
+		"HKEY_CURRENT_USER", \
+		"HKEY_LOCAL_MACHINE\\SAM", \
+		"HKEY_LOCAL_MACHINE\\SECURITY", \
+		"HKEY_LOCAL_MACHINE\\SOFTWARE", \
+		"HKEY_LOCAL_MACHINE\\SYSTEM", \
+		"HKEY_USERS\\.DEFAULT", \
+		"", \
+		"" \
+}
+
 /* ********************************** */
 
 #endif /* REGFILE_DECLARE_H_ */
