@@ -309,6 +309,18 @@ string nk_get_name(uint32_t ptr) {
 	return name;
 }
 
+string nk_get_class(uint32_t ptr) {
+	nk_struct *s = nk_init(ptr);
+	if (s->ptr_class_name != ptr_null) {
+		value_struct *class_val = value_init(s->ptr_class_name, s->size_key_class);
+		string res = string_new_from_unicode((uint16_t *)class_val->value, s->size_key_class >> 1);
+		return res;
+	} else {
+		string res = {.str = NULL, .len = 0};
+		return res;
+	}
+}
+
 int nk_childs_index_process(uint32_t ptr_chinds_index,
 			int (*callback)(uint32_t, void *), void *callback_data) {
 	assert(ptr_not_null(ptr_chinds_index));
@@ -429,6 +441,9 @@ string_and_ptr_list nk_get_childs_list(uint32_t ptr) {
 	assert(idx == res.size);
 
 	sglib_rbtree_free(&the_tree);
+
+	nk_struct *nk = nk_init(ptr);
+	assert(res.size == nk->count_childs);
 
 	return res;
 }
@@ -1088,6 +1103,28 @@ string_list nk_get_path_list(uint32_t ptr) {
 	}
 
 	return list;
+}
+
+/* ****************** */
+
+void nk_stats_free(nk_stats *p_stats) {
+	p_stats->count_childs = 0;
+	p_stats->count_params = 0;
+	string_free(&p_stats->class_name);
+	p_stats->time_creation = 0;
+	p_stats->ptr_self = ptr_null;
+}
+
+nk_stats nk_get_stats(uint32_t ptr) {
+	nk_struct *s = nk_init(ptr);
+	nk_stats res = {
+			.count_childs = s->count_childs,
+			.count_params = s->count_params,
+			.time_creation = s->time_creation,
+			.ptr_self = ptr
+	};
+	res.class_name = nk_get_class(ptr);
+	return res;
 }
 
 /* ********************************** */

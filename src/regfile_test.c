@@ -198,7 +198,17 @@ void print_path(uint32_t ptr) {
 	string_list_free(&path_list);
 }
 
-#include <unistd.h>
+void print_stats(uint32_t ptr) {
+	nk_stats stats = nk_get_stats(ptr);
+
+	printf("childs count = %u\n", stats.count_childs);
+	printf("params count = %u\n", stats.count_params);
+	printf("class name = "); string_print(stats.class_name); printf("\n");
+	printf("creation time = %016llX\n", (unsigned long long int)stats.time_creation);
+	printf("self ptr = %08X\n", stats.ptr_self);
+
+	nk_stats_free(&stats);
+}
 
 void test_recur(uint32_t ptr) {
 	string_and_ptr_list list = nk_get_childs_list(ptr);
@@ -208,6 +218,8 @@ void test_recur(uint32_t ptr) {
 		string_print(child.str); printf("\n");
 
 		print_path(child.ptr); printf("\n");
+
+		print_stats(child.ptr);
 
 		printf("____________________________\n");
 		print_params_parsed_full(child.ptr);
@@ -251,12 +263,13 @@ void test_key_path(int argc, char **argv) {
 	uint32_t ptr = regfile_init(argv[1]);
 	if (ptr == ptr_null) return;
 
-	delkey_init(DELKEY_MODE_ONLY_DEL);
-
 	ptr = change_path(ptr, argv[2]);
 	if (ptr == ptr_null) {printf("keypath not found\n"); return;}
 
 	print_path(ptr); printf("\n");
+
+	print_stats(ptr);
+
 	printf("~~~~~~~~~~\n");
 	print_childs(ptr);
 	printf("~~~~~~~~~~\n");

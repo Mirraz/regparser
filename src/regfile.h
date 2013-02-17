@@ -91,6 +91,17 @@ param_parsed_full vk_get_parsed(uint32_t ptr);
 void string_list_free(string_list *p_list);
 string_list nk_get_path_list(uint32_t ptr);
 
+typedef struct {
+	uint32_t count_childs;
+	uint32_t count_params;
+	string class_name;
+	uint64_t time_creation;
+	uint32_t ptr_self;
+} nk_stats;
+
+void nk_stats_free(nk_stats *p_stats);
+nk_stats nk_get_stats(uint32_t ptr);
+
 typedef enum {
 	DELKEY_MODE_DISABLE,
 	DELKEY_MODE_ONLY_DEL,
