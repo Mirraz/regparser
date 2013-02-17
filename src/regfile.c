@@ -31,6 +31,7 @@
 #define check_block_size() (abs(s->size)+ptr <= header_data.size_data_area)
 
 static const param_type_desc_struct param_type_desc[] = param_type_desc_value;
+static const param_type_desc_struct param_type_reg[] = param_type_reg_value;
 
 int fd = -1;
 static regf_struct header_data;
@@ -511,6 +512,14 @@ string vk_get_type_str(uint32_t ptr) {
 	return res;
 }
 
+void vk_type_fprint_reg(FILE *fout, uint32_t ptr) {
+	vk_struct *vk = vk_init(ptr);
+	if (vk->param_type == REG_SZ) return;
+	unsigned int j;
+	for (j=0; j<param_types_count && param_type_reg[j].type != vk->param_type; ++j);
+	fprintf(fout, "%s:", param_type_reg[j].name);
+}
+
 /* ****************** */
 
 string param_get_value_brief(uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
@@ -871,6 +880,56 @@ void param_value_free(param_value *p_value, uint32_t vk_type) {
 	}
 }
 
+void param_value_fprint_reg(FILE *fout, uint8_t *value_data, uint32_t value_size, uint32_t vk_type) {
+	if (value_size == 0) return;
+	switch (vk_type) {
+	case REG_NONE:
+	case REG_EXPAND_SZ:
+	case REG_BINARY:
+	case REG_LINK:
+	case REG_MULTI_SZ:
+	case REG_RESOURCE_LIST:
+	case REG_FULL_RESOURCE_DESCRIPTOR:
+	case REG_RESOURCE_REQUIREMENTS_LIST:
+	case REG_QWORD:
+	default: {
+		unsigned int i;
+		for (i=0; i<value_size; ++i) {
+			fprintf(fout, "%02X", value_data[i]);
+			if (i != value_size-1) {
+				fprintf(fout, ",");
+				if (!((i+1)&15)) fprintf(fout, "\\\n  ");
+			}
+		}
+		break;
+	}
+	case REG_SZ: {
+		fprintf(fout, "\"");
+
+		uint16_t *utf16_data = (uint16_t *)value_data;
+		unsigned int utf16_data_size = value_size >> 1;
+		// in "system", "software" regfiles may not be
+		if (utf16_data_size > 0 && utf16_data[utf16_data_size-1] == 0) --utf16_data_size;
+		string str = string_new_from_unicode(utf16_data, utf16_data_size);
+		fprintf(fout, "%.*s", (unsigned int)str.len, str.str);
+		string_free(&str);
+
+		fprintf(fout, "\"");
+		break;
+	}
+	case REG_DWORD: {
+		assert(value_size == 4);
+		fprintf(fout, "%08X", *((uint32_t *)value_data));
+		break;
+	}
+	case REG_DWORD_BIG_ENDIAN: {
+		assert(value_size == 4);
+		fprintf(fout, "%08X", be32toh(*((uint32_t *)value_data)));
+		break;
+	}
+	}
+}
+
 string vk_get_value_brief(uint32_t ptr) {
 	vk_struct *s = vk_init(ptr);
 	//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
@@ -934,6 +993,36 @@ param_value vk_get_value(uint32_t ptr) {
 		}
 	} else {
 		return param_block_get_value((uint8_t *)&(s->ptr_param_value), s->size_param_value & ~0x80000000, s->param_type);
+	}
+}
+
+void vk_value_fprint_reg(FILE *fout, uint32_t ptr) {
+	vk_struct *s = vk_init(ptr);
+	//fprintf(fout, "size = %d\n", s->size_param_value & ~0x80000000);
+	if (!(s->size_param_value & 0x80000000)) {
+		value_struct *block = (value_struct *)(data + s->ptr_param_value);
+		// this condition doesn't work
+		//if (s->size_param_value <= PARAM_PART_MAX)
+		if (abs(block->size) >= s->size_param_value) {
+			value_struct *param_value =
+					value_init(s->ptr_param_value, s->size_param_value);
+			param_value_fprint_reg(fout, param_value->value, s->size_param_value, s->param_type);
+		} else {
+			// db (in "system" regfile)
+			db_struct *db = db_init(s->ptr_param_value);
+			index_struct *part_index = index_init(db->ptr_value_parts_index, db->count_records);
+
+			uint32_t rest = s->size_param_value;
+			unsigned int i;
+			for (i=0; i<db->count_records; ++i) {
+				uint32_t part_size = (rest > PARAM_PART_MAX ? PARAM_PART_MAX : rest);
+				rest -= part_size;
+				value_struct *part = value_init(part_index->ptr_blocks[i], part_size);
+				param_value_fprint_reg(fout, part->value, part_size, s->param_type);
+			}
+		}
+	} else {
+		return param_value_fprint_reg(fout, (uint8_t *)&(s->ptr_param_value), s->size_param_value & ~0x80000000, s->param_type);
 	}
 }
 
@@ -1252,4 +1341,36 @@ void delkey_scan_blocks() {
 void delkey_init(DELKEY_MODE mode) {
 	delkey_mode = mode;
 	if (mode != DELKEY_MODE_DISABLE) delkey_scan_blocks();
+}
+
+/* ********************************** */
+
+void fprint_reg_header(FILE *fout) {
+	fprintf(fout, "Windows Registry Editor Version 5.00\n");
+}
+
+void nk_fprint_reg(FILE *fout, uint32_t ptr) {
+	fprintf(fout, "\n[");
+	// print path
+	string_list path = nk_get_path_list(ptr);
+	unsigned int i;
+	for (i=1; i<path.size; ++i) {
+		fprintf(fout, "\\");
+		string str = path.entries[i];
+		fprintf(fout, "%.*s", (unsigned int)str.len, str.str);
+	}
+	string_list_free(&path);
+	fprintf(fout, "]\n");
+
+	string_and_ptr_list params = nk_get_params_names_list(ptr);
+	for (i=0; i<params.size; ++i) {
+		fprintf(fout, "\"");
+		string name = params.entries[i].str;
+		fprintf(fout, "%.*s", (unsigned int)name.len, name.str);
+		fprintf(fout, "\"=");
+		uint32_t ptr_vk = params.entries[i].ptr;
+		vk_type_fprint_reg(fout, ptr_vk);
+		vk_value_fprint_reg(fout, ptr_vk);
+		fprintf(fout, "\n");
+	}
 }

@@ -110,4 +110,7 @@ typedef enum {
 
 void delkey_init(DELKEY_MODE mode);
 
+void fprint_reg_header(FILE *fout);
+void nk_fprint_reg(FILE *fout, uint32_t ptr);
+
 #endif /* REGFILE_H_ */

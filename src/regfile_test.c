@@ -279,10 +279,26 @@ void test_key_path(int argc, char **argv) {
 
 }
 
+void test_key_path_fprint_reg(int argc, char **argv) {
+	assert(argc == 3);
+
+	uint32_t ptr = regfile_init(argv[1]);
+	if (ptr == ptr_null) return;
+
+	ptr = change_path(ptr, argv[2]);
+	if (ptr == ptr_null) {printf("keypath not found\n"); return;}
+
+	fprint_reg_header(stderr);
+	nk_fprint_reg(stderr, ptr);
+
+	regfile_uninit();
+}
+
 int main(int argc, char **argv) {
 flog = fopen("/tmp/debug.log", "w");
 
-	test_key_path(argc, argv);
+	test_key_path_fprint_reg(argc, argv);
+	//test_key_path(argc, argv);
 	//test_recut_start(argc, argv);
 
 	fprintf(stdout, "Success\n");
