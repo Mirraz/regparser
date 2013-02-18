@@ -7,7 +7,7 @@ DEFINES=
 INCLUDES=
 CFLAGS=$(WARNINGS) $(COPTIM) $(DEFINES) $(INCLUDES)
 LDOPTIM=-Wl,-O1 -Wl,--as-needed
-LIBFILES=-lncursesw
+LIBFILES=-Wl,-Bstatic -lcdkw -Wl,-Bdynamic -lncursesw
 LDFLAGS=$(WARNINGS) $(LDOPTIM) $(LIBFILES)
 SRC_DIR=src
 BUILD_DIR=build
@@ -19,11 +19,14 @@ all: $(BUILD_DIR) $(EXECUTABLE)
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/childmap.o $(BUILD_DIR)/childset.o $(BUILD_DIR)/rbtree.o $(BUILD_DIR)/string_type.o
+$(EXECUTABLE): $(BUILD_DIR)/main.o $(BUILD_DIR)/cdk_widgets.o $(BUILD_DIR)/widgets.o $(BUILD_DIR)/regfile.o $(BUILD_DIR)/childmap.o $(BUILD_DIR)/childset.o $(BUILD_DIR)/rbtree.o $(BUILD_DIR)/string_type.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 	$(STRIP) $@
 
-$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/widgets.h $(SRC_DIR)/regfile.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.c $(SRC_DIR)/cdk_widgets.h $(SRC_DIR)/widgets.h $(SRC_DIR)/regfile.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile
+	$(CC) -o $@ $< -c $(CFLAGS)
+
+$(BUILD_DIR)/cdk_widgets.o: $(SRC_DIR)/cdk_widgets.c $(SRC_DIR)/cdk_widgets.h Makefile
 	$(CC) -o $@ $< -c $(CFLAGS)
 
 $(BUILD_DIR)/widgets.o: $(SRC_DIR)/widgets.c $(SRC_DIR)/widgets.h $(SRC_DIR)/common.h $(SRC_DIR)/string_type.h Makefile

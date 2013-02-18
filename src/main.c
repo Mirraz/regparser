@@ -9,6 +9,7 @@
 #include <locale.h>
 #include <ncurses.h>
 
+#include "cdk_widgets.h"
 #include "widgets.h"
 #include "regfile.h"
 #include "parse_common.h"
@@ -186,6 +187,8 @@ void widg_childs_ch(int ch);
 void widg_params_ch(int ch);
 void widg_pwd_ch(int ch);
 void widg_stats_ch(int ch);
+void reg_save();
+int regfile_open();
 
 int widg_main_ch(int ch) {
 	//fprintf(flog, "[%u]\n", ch); fflush(flog);
@@ -206,6 +209,12 @@ int widg_main_ch(int ch) {
 		widg_params_ch(ch);
 		widg_pwd_ch(ch);
 		widg_stats_ch(ch);
+		break;
+	case 's':
+		reg_save();
+		break;
+	case 'o' :
+		return regfile_open();
 		break;
 	default:
 		switch (state.current_widget) {
@@ -580,6 +589,39 @@ int mode_vk_ch(int ch) {
 	default:
 		break;
 	}
+	return 0;
+}
+
+/* ****************** */
+
+void reg_save() {
+	curs_set(1);
+	const char *path = cdk_entry_form(stdscr, "<C>Enter a filename for save");
+	if (path != NULL) {
+		FILE *fout = fopen(path, "w");
+		assert(fout != NULL);
+		fprint_reg_header(fout);
+		nk_fprint_reg(fout, state.ptr_nk_current);
+		fclose(fout);
+	}
+	clear();
+	widg_main_ch(KEY_RESIZE);
+}
+
+int regfile_open() {
+	curs_set(1);
+	const char *path = cdk_file_select(stdscr, "<C>Select a file for open");
+	clear();
+	if (path != NULL) {
+		assert(regfile_uninit() == 0);
+		uint32_t ptr_root_nk = regfile_init(path);
+		if (ptr_root_nk == ptr_null) {
+			return 1;
+		}
+		state.ptr_nk_current = ptr_root_nk;
+		widg_main_ch(KEY_NK_CHANGE);
+	}
+	widg_main_ch(KEY_RESIZE);
 	return 0;
 }
 
