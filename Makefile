@@ -1,8 +1,8 @@
 CC=gcc
 LD=gcc
-STRIP=strip
+STRIP=strip -s
 WARNINGS=-Wall -Wextra
-COPTIM=-march=x86-64 -O2 -fomit-frame-pointer -pipe
+COPTIM=-march=native -O2 -fomit-frame-pointer -pipe
 DEFINES=
 INCLUDES=-I /usr/include/cdk/
 CFLAGS=$(WARNINGS) $(COPTIM) $(DEFINES) $(INCLUDES)
