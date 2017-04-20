@@ -4,10 +4,10 @@ STRIP=strip
 WARNINGS=-Wall -Wextra
 COPTIM=-march=x86-64 -O2 -fomit-frame-pointer -pipe
 DEFINES=
-INCLUDES=
+INCLUDES=-I /usr/include/cdk/
 CFLAGS=$(WARNINGS) $(COPTIM) $(DEFINES) $(INCLUDES)
 LDOPTIM=-Wl,-O1 -Wl,--as-needed
-LIBFILES=-Wl,-Bstatic -lcdkw -Wl,-Bdynamic -lncursesw
+LIBFILES=-lcdk -lncursesw
 LDFLAGS=$(WARNINGS) $(LDOPTIM) $(LIBFILES)
 SRC_DIR=src
 BUILD_DIR=build
